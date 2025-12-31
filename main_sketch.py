@@ -991,9 +991,9 @@ def main():
                     
                     # Now create renderer with active context
                     try:
-                    renderer = Renderer3D()
-                    renderer.load_textures(*generated_files)
-                    SHOW_3D_HELP = False
+                        renderer = Renderer3D()
+                        renderer.load_textures(*generated_files)
+                        SHOW_3D_HELP = False
                     except Exception as e:
                         print(f"Error creating renderer: {e}")
                         print("Falling back to paint mode...")
