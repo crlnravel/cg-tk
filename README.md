@@ -77,6 +77,21 @@ pip install -r requirements.txt
 python -c "import torch; print(f'PyTorch: {torch.__version__}'); print(f'CUDA available: {torch.cuda.is_available()}')"
 ```
 
+### Step 5: Pre-Download AI Models (Recommended)
+
+**Important**: Run this script once to download all AI models (~4-5GB). This prevents downloading models every time you run the application.
+
+```bash
+python prepare_models.py
+```
+
+This will download:
+- ControlNet (Scribble) model
+- Stable Diffusion v1.5 model
+- Depth-Anything-Small model
+
+**Note**: Models are automatically cached in `~/.cache/huggingface/` and won't be re-downloaded. The pre-download script ensures all models are ready before first use.
+
 ## 🎮 Usage
 
 ### Running the Application
@@ -85,7 +100,7 @@ python -c "import torch; print(f'PyTorch: {torch.__version__}'); print(f'CUDA av
 python main_sketch.py
 ```
 
-**Note**: On first run, the application will download AI models (~4-5GB). This may take several minutes depending on your internet connection.
+**Note**: If you haven't run `prepare_models.py`, the application will download AI models on first run (~4-5GB). This may take several minutes depending on your internet connection. We recommend pre-downloading models using `prepare_models.py` to avoid this delay.
 
 ### Workflow
 
@@ -128,6 +143,7 @@ python main_sketch.py
 ```
 cg-tk/
 ├── main_sketch.py          # Main application file
+├── prepare_models.py       # Pre-download script for AI models
 ├── requirements.txt        # Python dependencies
 ├── README.md              # This file
 ├── sketch_input.png       # Saved sketch (generated)
@@ -169,12 +185,14 @@ cg-tk/
   - Reduce batch size in code (if applicable)
   - Use CPU mode (slower but works)
 
-**2. Models not downloading**
+**2. Models not downloading or re-downloading every time**
 - **Solution**: 
   - Check internet connection
   - Models are downloaded from Hugging Face Hub
-  - First download may take 10-15 minutes
+  - Models are cached in `~/.cache/huggingface/` by default
+  - Run `python prepare_models.py` once to pre-download all models
   - Ensure you have ~5GB free space
+  - If models keep re-downloading, check cache directory permissions
 
 **3. OpenGL errors on macOS**
 - **Solution**: The code includes macOS-specific fixes. If issues persist:

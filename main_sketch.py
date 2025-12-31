@@ -694,7 +694,23 @@ void main() {
 
 class Renderer3D:
     def __init__(self):
+        # Verify OpenGL context is active
+        try:
+            # Test if context is available by checking a simple OpenGL call
+            test = glGetString(GL_VERSION)
+            if test is None:
+                raise RuntimeError("OpenGL context not active")
+        except Exception as e:
+            raise RuntimeError(f"OpenGL context error: {e}. Make sure OpenGL context is initialized before creating Renderer3D.")
+        
+        # Create VAO first (required for some platforms like macOS)
+        self.VAO = glGenVertexArrays(1)
+        glBindVertexArray(self.VAO)
+        
+        # Now create plane geometry
         self.create_plane()
+        
+        # Compile shaders
         self.shader = OpenGL.GL.shaders.compileProgram(
             OpenGL.GL.shaders.compileShader(VERTEX_SHADER, GL_VERTEX_SHADER),
             OpenGL.GL.shaders.compileShader(FRAGMENT_SHADER, GL_FRAGMENT_SHADER),
@@ -721,8 +737,11 @@ class Renderer3D:
         self.count = len(inds)
         v_data = np.array(verts, dtype=np.float32)
         i_data = np.array(inds, dtype=np.uint32)
-        self.VAO = glGenVertexArrays(1)
+        
+        # VAO is already created and bound in __init__
+        # Just ensure it's still bound
         glBindVertexArray(self.VAO)
+        
         self.VBO = glGenBuffers(1)
         glBindBuffer(GL_ARRAY_BUFFER, self.VBO)
         glBufferData(GL_ARRAY_BUFFER, v_data.nbytes, v_data, GL_STATIC_DRAW)
@@ -856,15 +875,22 @@ def main():
     global generation_thread, generation_progress, generation_status, generation_complete, generated_files
     
     pygame.init()
+    # Use windowed mode instead of fullscreen
+    # Window size: use 80% of screen size or default to 1920x1080
     info = pygame.display.Info()
-    W, H = info.current_w, info.current_h
+    W = int(info.current_w * 0.8) if info.current_w > 0 else 1920
+    H = int(info.current_h * 0.8) if info.current_h > 0 else 1080
+    # Ensure minimum size
+    W = max(W, 1280)
+    H = max(H, 720)
     
     # Start AI Thread
     t = threading.Thread(target=ai_loader_thread, daemon=True)
     t.start()
     
     # 1. Loading Loop
-    screen = pygame.display.set_mode((W, H), pygame.FULLSCREEN)
+    screen = pygame.display.set_mode((W, H))
+    pygame.display.set_caption("Sketch-to-Material Studio - Loading...")
     font_large = pygame.font.SysFont("Segoe UI", 40)
     font_small = pygame.font.SysFont("Segoe UI", 20)
     clock = pygame.time.Clock()
@@ -949,10 +975,34 @@ def main():
                     pygame.display.gl_set_attribute(pygame.GL_CONTEXT_MAJOR_VERSION, 3)
                     pygame.display.gl_set_attribute(pygame.GL_CONTEXT_MINOR_VERSION, 3)
                     pygame.display.gl_set_attribute(pygame.GL_CONTEXT_PROFILE_MASK, pygame.GL_CONTEXT_PROFILE_CORE)
-                    screen = pygame.display.set_mode((W, H), DOUBLEBUF | OPENGL | FULLSCREEN)
-                    renderer = Renderer3D()
-                    renderer.load_textures(*generated_files)
-                    SHOW_3D_HELP = False
+                    screen = pygame.display.set_mode((W, H), DOUBLEBUF | OPENGL)
+                    pygame.display.set_caption("Sketch-to-Material Studio - 3D View")
+                    
+                    # Ensure OpenGL context is active before creating renderer
+                    # Initialize OpenGL state to ensure context is ready
+                    try:
+                        glClearColor(0.1, 0.1, 0.1, 1.0)
+                        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+                        glEnable(GL_DEPTH_TEST)
+                        # Force context to be current
+                        pygame.display.flip()
+                    except Exception as e:
+                        print(f"Warning: OpenGL initialization issue: {e}")
+                    
+                    # Now create renderer with active context
+                    try:
+                        renderer = Renderer3D()
+                        renderer.load_textures(*generated_files)
+                        SHOW_3D_HELP = False
+                    except Exception as e:
+                        print(f"Error creating renderer: {e}")
+                        print("Falling back to paint mode...")
+                        MODE = "PAINT"
+                        pygame.display.quit()
+                        pygame.display.init()
+                        screen = pygame.display.set_mode((W, H))
+                        pygame.display.set_caption("Sketch-to-Material Studio")
+                        painter = PaintInterface((W, H))
             
             painter.draw(screen) 
             painter.draw_modal(screen, "Ready to View", [
@@ -1013,7 +1063,8 @@ def main():
                         MODE = "PAINT"
                         pygame.display.quit()
                         pygame.display.init()
-                        screen = pygame.display.set_mode((W, H), FULLSCREEN)
+                        screen = pygame.display.set_mode((W, H))
+                        pygame.display.set_caption("Sketch-to-Material Studio")
                         painter = PaintInterface((W, H))
                     elif event.key == K_h:
                         SHOW_3D_HELP = not SHOW_3D_HELP
