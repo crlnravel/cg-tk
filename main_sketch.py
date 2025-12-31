@@ -70,6 +70,8 @@ class AIPipeline:
             "runwayml/stable-diffusion-v1-5",
             controlnet=self.controlnet,
             torch_dtype=torch.float16 if DEVICE == "cuda" else torch.float32,
+            safety_checker=None,  # Disable NSFW
+            requires_safety_checker=False,
         ).to(DEVICE)
         self.pipe.scheduler = UniPCMultistepScheduler.from_config(
             self.pipe.scheduler.config
