@@ -2,3 +2,17 @@
 assets_*
 sketch_*
 projects
+
+report.aux
+report.fdb_latexmk
+report.fls
+report.log
+report.out
+report.pdf
+report.synctex.gz
+report.toc
+report.lof
+report.lot
+report.lol
+report.loa
+report.loe
