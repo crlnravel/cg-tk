@@ -22,31 +22,40 @@
 % Title and Authors
 \title{Sketch-to-Material Studio: Integrating Classical Rendering with AI-Based Texture Generation}
 
-\author{Author One}
+\author{Carleano Ravelza Wongso}
 \affiliation{%
   \institution{Universitas Indonesia}
   \city{Depok}
   \country{Indonesia}
 }
-\email{author1@ui.ac.id}
+\email{carleano.ravelza@ui.ac.id}
 \orcid{0000-0000-0000-0000}
 
-\author{Author Two}
+\author{Andrew Devito Aryo}
 \affiliation{%
   \institution{Universitas Indonesia}
   \city{Depok}
   \country{Indonesia}
 }
-\email{author2@ui.ac.id}
+\email{andrew.devito@ui.ac.id}
 \orcid{0000-0000-0000-0000}
 
-\author{Author Three}
+\author{Arya Raditya Kusuma}
 \affiliation{%
   \institution{Universitas Indonesia}
   \city{Depok}
   \country{Indonesia}
 }
-\email{author3@ui.ac.id}
+\email{arya.raditya@ui.ac.id}
+\orcid{0000-0000-0000-0000}
+
+\author{Tristan Agra Yudhistira}
+\affiliation{%
+  \institution{Universitas Indonesia}
+  \city{Depok}
+  \country{Indonesia}
+}
+\email{tristan.agra@ui.ac.id}
 \orcid{0000-0000-0000-0000}
 
 % Additional authors (if group has 4 members)
@@ -60,7 +69,7 @@
 
 % Abstract
 \begin{abstract}
-This paper presents Sketch-to-Material Studio, a computer graphics system that seamlessly integrates classical OpenGL rendering techniques with modern AI-based texture generation. Our system enables users to create detailed 3D materials from simple 2D sketches by leveraging Stable Diffusion for texture synthesis and learned depth estimation for geometry extraction. The generated textures are rendered in real-time using classical rasterization pipeline with Phong lighting, displacement mapping, and normal mapping. We demonstrate that the combination of generative AI models and classical rendering techniques produces high-quality material visualization while maintaining interactive performance. Our approach addresses the challenge of rapid material prototyping in 3D graphics workflows, providing an intuitive interface that bridges the gap between artistic sketching and technical material creation. Experimental results show that our system can generate visually appealing materials with realistic lighting and surface details, achieving a balance between AI-driven content generation and classical rendering quality.
+This paper presents Sketch-to-Material Studio, a computer graphics system that seamlessly integrates classical OpenGL rendering techniques with modern AI-based texture generation. Our system enables users to create detailed 3D materials from simple 2D sketches by leveraging Stable Diffusion ControlNet for sketch-conditioned texture synthesis and learned depth estimation for geometry extraction. The system automatically generates a complete PBR material set (albedo, depth, normal, and roughness maps) from user sketches, which are then rendered in real-time using a classical rasterization pipeline with Phong lighting, displacement mapping, and normal mapping. We demonstrate that the combination of ControlNet-based generative AI models and classical rendering techniques produces high-quality material visualization while maintaining interactive performance. Our approach addresses the challenge of rapid material prototyping in 3D graphics workflows, providing an intuitive interface that bridges the gap between artistic sketching and technical material creation. Experimental results show that our system can generate visually appealing materials with realistic lighting and surface details, achieving a balance between AI-driven content generation and classical rendering quality.
 \end{abstract}
 
 % Keywords
@@ -102,94 +111,89 @@ This paper presents Sketch-to-Material Studio, a computer graphics system that s
 
 The creation of realistic materials and textures is a fundamental challenge in computer graphics, requiring both artistic skill and technical expertise. Traditional workflows involve manual texture painting, photogrammetry, or procedural generation, each with significant time investments and technical barriers. Recent advances in generative AI, particularly diffusion models, have shown remarkable capability in synthesizing high-quality textures from text prompts or simple sketches. However, these AI-generated textures often lack the geometric context and lighting integration required for realistic 3D visualization.
 
-This paper presents \textit{Sketch-to-Material Studio}, a system that bridges the gap between AI-driven texture generation and classical 3D rendering. Our approach combines Stable Diffusion for texture synthesis with learned depth estimation to automatically generate complete material sets (albedo, depth, and normal maps) from user sketches. These materials are then rendered using classical OpenGL techniques, including Phong lighting, displacement mapping, and normal mapping, to produce interactive 3D visualizations.
+This paper presents \textit{Sketch-to-Material Studio}, a system that bridges the gap between AI-driven texture generation and classical 3D rendering. Our approach combines Stable Diffusion ControlNet for sketch-conditioned texture synthesis with learned depth estimation to automatically generate complete PBR material sets (albedo, depth, normal, and roughness maps) from user sketches. The ControlNet architecture enables precise control over texture generation by conditioning on the input sketch structure, ensuring that generated textures preserve the user's artistic intent. These materials are then rendered using classical OpenGL techniques, including Phong lighting, displacement mapping, and normal mapping, to produce interactive 3D visualizations.
 
-\textbf{Contributions:} Our main contributions are: (1) an integrated pipeline that combines diffusion-based texture generation with classical rendering, (2) automatic geometry extraction from generated textures using learned depth estimation, (3) a real-time interactive system for material visualization, and (4) demonstration of effective integration between modern AI techniques and classical graphics algorithms.
+Our main contributions include an integrated pipeline that combines ControlNet-based diffusion texture generation with classical rendering, automatic PBR material generation (albedo, depth, normal, and roughness maps) from sketches, automatic geometry extraction from generated textures using learned depth estimation, a real-time interactive system for material visualization with threaded AI loading, and a demonstration of effective integration between modern AI techniques and classical graphics algorithms.
 
 % ==========================================
 % 2. LITERATURE REVIEW
 % ==========================================
 \section{Literature Review}
 
-\subsection{Classical Rendering Techniques}
-
-Classical computer graphics has established robust methods for material representation and rendering. The Phong lighting model \cite{phong1975illumination} provides a computationally efficient approximation of surface illumination through ambient, diffuse, and specular components. Texture mapping, introduced by Catmull \cite{catmull1974subdivision}, enables detailed surface appearance without geometric complexity. Displacement mapping \cite{cook1984shade} extends this concept by modifying surface geometry based on texture values, creating more realistic surface details.
+\textbf{Classical Rendering Techniques.} Classical computer graphics has established robust methods for material representation and rendering. The Phong lighting model \cite{phong1975illumination} provides a computationally efficient approximation of surface illumination through ambient, diffuse, and specular components. Texture mapping, introduced by Catmull \cite{catmull1974subdivision}, enables detailed surface appearance without geometric complexity. Displacement mapping \cite{cook1984shade} extends this concept by modifying surface geometry based on texture values, creating more realistic surface details.
 
 Modern GPU-based rendering pipelines leverage these classical techniques through programmable shaders, enabling real-time rendering of complex materials. Normal mapping \cite{blinn1978simulation} further enhances surface detail by perturbing surface normals without geometric modification, providing an efficient method for fine-scale surface variation.
 
-\subsection{AI-Based Graphics Generation}
+\textbf{AI-Based Graphics Generation.} Recent advances in deep learning have revolutionized texture and material generation. Generative Adversarial Networks (GANs) \cite{goodfellow2014generative} enabled high-quality image synthesis, while Variational Autoencoders (VAEs) \cite{kingma2013auto} provided structured latent representations. However, diffusion models \cite{ho2020denoising, rombach2022high} have emerged as the state-of-the-art for image generation, offering superior quality and controllability.
 
-Recent advances in deep learning have revolutionized texture and material generation. Generative Adversarial Networks (GANs) \cite{goodfellow2014generative} enabled high-quality image synthesis, while Variational Autoencoders (VAEs) \cite{kingma2013auto} provided structured latent representations. However, diffusion models \cite{ho2020denoising, rombach2022high} have emerged as the state-of-the-art for image generation, offering superior quality and controllability.
+Stable Diffusion \cite{rombach2022high} specifically enables text-to-image and image-to-image generation through a latent diffusion process, making it accessible for texture synthesis applications. ControlNet \cite{zhang2023adding} extends Stable Diffusion by adding conditional control mechanisms, enabling precise control over generation through various conditioning inputs such as edge maps, depth maps, or scribbles. The scribble ControlNet variant is particularly suitable for sketch-based texture generation, as it preserves the structural information from user sketches while allowing the model to add realistic texture details.
 
-Stable Diffusion \cite{rombach2022high} specifically enables text-to-image and image-to-image generation through a latent diffusion process, making it accessible for texture synthesis applications. The Img2Img variant allows conditioning on input images, making it suitable for sketch-based texture generation.
-
-\subsection{Depth Estimation and Geometry Extraction}
-
-Monocular depth estimation has been extensively studied in computer vision. Early methods relied on hand-crafted features and geometric constraints \cite{saxena2009make3d}. Deep learning approaches, such as those by Eigen et al. \cite{eigen2015predicting} and Godard et al. \cite{godard2017unsupervised}, have significantly improved accuracy. Recent models like Depth-Anything \cite{yang2024depth} provide robust depth estimation suitable for geometry extraction in graphics applications.
+\textbf{Depth Estimation and Geometry Extraction.} Monocular depth estimation has been extensively studied in computer vision. Early methods relied on hand-crafted features and geometric constraints \cite{saxena2009make3d}. Deep learning approaches, such as those by Eigen et al. \cite{eigen2015predicting} and Godard et al. \cite{godard2017unsupervised}, have significantly improved accuracy. Recent models like Depth-Anything \cite{yang2024depth} provide robust depth estimation suitable for geometry extraction in graphics applications.
 
 Normal maps can be derived from depth maps through gradient computation, as demonstrated in classical computer vision \cite{horn1981determining}. This approach enables automatic normal map generation from estimated depth, completing the material set required for realistic rendering.
 
-\subsection{Integration of AI and Classical Graphics}
-
-Several works have explored combining AI generation with classical rendering. Neural rendering approaches like NeRF \cite{mildenhall2020nerf} use learned representations but require extensive training. Our approach differs by using pre-trained generative models and integrating their output with classical rendering pipelines, providing flexibility and real-time performance.
+\textbf{Integration of AI and Classical Graphics.} Several works have explored combining AI generation with classical rendering. Neural rendering approaches like NeRF \cite{mildenhall2020nerf} use learned representations but require extensive training. Our approach differs by using pre-trained generative models and integrating their output with classical rendering pipelines, providing flexibility and real-time performance.
 
 % ==========================================
 % 3. SYSTEM DESIGN
 % ==========================================
 \section{System Design}
 
-\subsection{Architecture Overview}
-
-Our system follows a three-stage pipeline: (1) \textit{Sketch Input}, where users create or upload 2D sketches, (2) \textit{AI Generation}, which produces material maps from sketches, and (3) \textit{Classical Rendering}, which visualizes the materials in 3D. Figure~\ref{fig:pipeline} illustrates the complete pipeline.
+\textbf{Architecture Overview.} Our system follows a three-stage pipeline: (1) \textit{Sketch Input}, where users create or upload 2D sketches, (2) \textit{AI Generation}, which produces material maps from sketches, and (3) \textit{Classical Rendering}, which visualizes the materials in 3D. 
 
 \begin{figure}[h]
 \centering
 \includegraphics[width=\columnwidth]{figures/pipeline.png}
-\caption{System pipeline: from sketch input through AI generation to 3D rendering.}
+\caption{System pipeline from sketch to 3D rendering.}
 \label{fig:pipeline}
 \end{figure}
 
-\subsection{Sketch Input Module}
+\textbf{Sketch Input Module.} The sketch input module provides an interactive 2D canvas implemented using PyGame. Users can draw directly with mouse input, select colors from a palette, or drag-and-drop existing images. The canvas supports real-time drawing with configurable brush sizes and color selection. Sketches are saved as 512x512 pixel images for processing by the AI pipeline.
 
-The sketch input module provides an interactive 2D canvas implemented using PyGame. Users can draw directly with mouse input, select colors from a palette, or drag-and-drop existing images. The canvas supports real-time drawing with configurable brush sizes and color selection. Sketches are saved as 512x512 pixel images for processing by the AI pipeline.
+\textbf{AI Generation Pipeline.} The AI generation stage consists of three components:
 
-\subsection{AI Generation Pipeline}
+\textbf{Texture Synthesis}
+We employ Stable Diffusion v1.5 with ControlNet (scribble variant) to generate detailed textures from user sketches. The ControlNet architecture provides precise structural control by conditioning the diffusion process on the input sketch. Sketches are preprocessed through binary thresholding and inversion to create clean edge maps that serve as ControlNet conditioning. The model uses UniPCMultistepScheduler for efficient inference with 30 steps. ControlNet conditioning scale is set to 0.7 to balance between preserving sketch structure and allowing creative freedom. Positive prompts emphasize "seamless texture, top down view, flat lighting, 8k, highly detailed, photorealistic material" while negative prompts exclude "perspective, 3d, shadows, people, objects, text, watermark, blurry, low quality, distortion". Guidance scale is set to 8.0 for strong prompt adherence.
 
-The AI generation stage consists of three components:
+\textbf{Depth Estimation}
+We use the Depth-Anything-Small model \cite{yang2024depth} to estimate depth from the generated texture. This provides a depth map that encodes geometric information for displacement mapping.
 
-\textbf{Texture Synthesis:} We employ Stable Diffusion v1.5 Img2Img pipeline to generate detailed textures from user sketches. The model is conditioned on the input sketch and a text prompt, with a strength parameter of 0.75 to balance between preserving sketch structure and adding detail. Positive prompts emphasize "top down view, flat lighting, albedo texture, seamless, high resolution" while negative prompts exclude "shadows, highlights, perspective, tilted, depth of field, 3d render, lowres".
+\textbf{Normal Map Generation}
+Normal maps are computed from depth maps using Sobel operators (kernel size 5) to compute gradients. The gradients are normalized and encoded in RGB format, providing surface normal perturbations for enhanced lighting detail.
 
-\textbf{Depth Estimation:} We use the Depth-Anything-Small model \cite{yang2024depth} to estimate depth from the generated texture. This provides a depth map that encodes geometric information for displacement mapping.
+\textbf{Roughness Map Generation}
+Roughness maps are automatically derived from the generated albedo texture by converting to grayscale, normalizing, and inverting the values. This approach assumes that darker regions in the albedo correspond to rougher surfaces, providing a physically plausible roughness distribution without requiring additional AI processing.
 
-\textbf{Normal Map Generation:} Normal maps are computed from depth maps using Sobel operators to compute gradients. The gradients are normalized and encoded in RGB format, providing surface normal perturbations for enhanced lighting detail.
+\textbf{Classical Rendering Pipeline.} The rendering module implements a classical OpenGL 3.3 rasterization pipeline:
 
-\subsection{Classical Rendering Pipeline}
+\textbf{Geometry}
+A 200x200 grid mesh serves as the base geometry, providing high-resolution surface detail for displacement mapping. Vertices include position, texture coordinates, and normals, stored in a Vertex Array Object (VAO) for efficient GPU access.
 
-The rendering module implements a classical OpenGL 3.3 rasterization pipeline:
+\textbf{Vertex Shader}
+Performs displacement mapping by sampling the depth texture and displacing vertices along their normals. The displacement strength is configurable (default 0.3) to control surface relief.
 
-\textbf{Geometry:} A 100x100 grid mesh serves as the base geometry. Vertices include position, texture coordinates, and normals, stored in a Vertex Array Object (VAO) for efficient GPU access.
-
-\textbf{Vertex Shader:} Performs displacement mapping by sampling the depth texture and displacing vertices along their normals. The displacement strength is configurable (default 0.3) to control surface relief.
-
-\textbf{Fragment Shader:} Implements Phong lighting with three components:
+\textbf{Fragment Shader}
+Implements Phong lighting with three components:
 \begin{itemize}
     \item \textit{Ambient}: Constant 0.2 contribution for base illumination
     \item \textit{Diffuse}: Lambertian reflection based on surface normal and light direction
     \item \textit{Specular}: Blinn-Phong specular highlights with shininess exponent 32
 \end{itemize}
 
-The shader samples three textures: albedo for base color, depth for displacement, and normal for surface detail. Normal maps are blended with geometric normals to enhance surface detail.
+The shader samples four textures: albedo for base color, depth for displacement, normal for surface detail, and roughness for specular control. Normal maps are blended with geometric normals to enhance surface detail. Roughness values modulate the specular highlight intensity, creating more realistic material appearance.
 
-\textbf{Camera System:} An orbital camera allows interactive viewing with mouse drag controls. The camera uses spherical coordinates converted to Cartesian for LookAt matrix computation.
+\textbf{Camera System}
+An orbital camera allows interactive viewing with mouse drag controls. The camera uses spherical coordinates converted to Cartesian for LookAt matrix computation.
 
 % ==========================================
 % 4. IMPLEMENTATION
 % ==========================================
 \section{Implementation}
 
-\subsection{Classical Graphics Components}
+\textbf{Classical Graphics Components.}
 
-\textbf{Rasterization Pipeline:} We implement a complete OpenGL rasterization pipeline using PyOpenGL. The pipeline includes:
+\textbf{Rasterization Pipeline}
+We implement a complete OpenGL rasterization pipeline using PyOpenGL. The pipeline includes:
 \begin{itemize}
     \item Vertex Buffer Objects (VBO) for vertex data storage
     \item Element Buffer Objects (EBO) for indexed rendering
@@ -197,52 +201,63 @@ The shader samples three textures: albedo for base color, depth for displacement
     \item Custom GLSL shaders for vertex and fragment processing
 \end{itemize}
 
-\textbf{Lighting Model:} The Phong lighting model is implemented in the fragment shader with the following equation:
+\textbf{Lighting Model}
+The Phong lighting model is implemented in the fragment shader with the following equation:
 \begin{equation}
 I = I_a + I_d \cdot \max(\mathbf{N} \cdot \mathbf{L}, 0) + I_s \cdot (\mathbf{N} \cdot \mathbf{H})^n
 \end{equation}
 where $I_a$, $I_d$, and $I_s$ are ambient, diffuse, and specular intensities, $\mathbf{N}$ is the surface normal, $\mathbf{L}$ is the light direction, $\mathbf{H}$ is the half-vector, and $n$ is the shininess exponent.
 
-\textbf{Texture Mapping:} Multi-texture binding enables simultaneous use of albedo, depth, and normal maps. Textures are loaded using PIL/Pillow and uploaded to GPU memory with mipmap generation for quality filtering.
+\textbf{Texture Mapping}
+Multi-texture binding enables simultaneous use of albedo, depth, normal, and roughness maps. Textures are loaded using PIL/Pillow and uploaded to GPU memory with mipmap generation for quality filtering. The system organizes generated materials into project folders for easy management and reuse.
 
-\textbf{Displacement Mapping:} Vertex displacement is performed in the vertex shader by sampling the depth texture and scaling the displacement by a configurable strength parameter. This creates geometric detail without modifying the base mesh topology.
+\textbf{Displacement Mapping}
+Vertex displacement is performed in the vertex shader by sampling the depth texture and scaling the displacement by a configurable strength parameter. This creates geometric detail without modifying the base mesh topology.
 
-\subsection{AI-Based Components}
+\textbf{AI-Based Components.}
 
-\textbf{Stable Diffusion Integration:} We use the Hugging Face Diffusers library to load and run Stable Diffusion v1.5. The model supports both CUDA (NVIDIA GPUs) and CPU execution, with automatic device selection. The Img2Img pipeline accepts:
+\textbf{Stable Diffusion ControlNet Integration}
+We use the Hugging Face Diffusers library to load and run Stable Diffusion v1.5 with ControlNet (scribble variant). The model supports both CUDA (NVIDIA GPUs), MPS (Apple Silicon), and CPU execution, with automatic device selection. The ControlNet pipeline accepts:
 \begin{itemize}
-    \item Input image (sketch) resized to 512x512
+    \item Input sketch preprocessed through binary thresholding and inversion
     \item Text prompt for generation guidance
-    \item Strength parameter (0.75) controlling sketch preservation
+    \item ControlNet conditioning scale (0.7) controlling sketch structure preservation
     \item Guidance scale (8.0) for prompt adherence
+    \item UniPCMultistepScheduler for efficient 30-step inference
 \end{itemize}
+The AI pipeline is loaded in a separate thread to prevent blocking the user interface during initialization, which can take several minutes on first run.
 
-\textbf{Depth Estimation:} The Depth-Anything-Small model is loaded via Hugging Face Transformers pipeline API. The model processes the generated texture and outputs a depth map, which is resized to match the texture resolution (512x512).
+\textbf{Depth Estimation}
+The Depth-Anything-Small model is loaded via Hugging Face Transformers pipeline API. The model processes the generated texture and outputs a depth map, which is resized to match the texture resolution (512x512).
 
-\textbf{Normal Map Computation:} Normal maps are computed using OpenCV's Sobel operators:
+\textbf{Normal Map Computation}
+Normal maps are computed using OpenCV's Sobel operators with kernel size 5:
 \begin{equation}
 \mathbf{N} = \text{normalize}([-S_x, -S_y, k])
 \end{equation}
-where $S_x$ and $S_y$ are Sobel gradients, and $k$ is a constant (200.0) representing the base normal component. The result is normalized and encoded to [0, 255] range for texture storage.
+where $S_x$ and $S_y$ are Sobel gradients, and $k$ is a constant (500.0) representing the base normal component. The result is normalized and encoded to [0, 255] range for texture storage.
 
-\subsection{System Integration}
+\textbf{Roughness Map Computation}
+Roughness maps are derived from albedo textures through grayscale conversion and inversion:
+\begin{equation}
+R = 255 - \text{normalize}(\text{grayscale}(A))
+\end{equation}
+where $A$ is the albedo texture. This assumes darker albedo regions correspond to rougher surfaces, providing a physically plausible approximation.
 
-The system integrates AI and classical components through a two-mode interface:
+\textbf{System Integration.} The system integrates AI and classical components through a two-mode interface:
 \begin{itemize}
     \item \textit{Paint Mode}: 2D sketch creation using PyGame
     \item \textit{View Mode}: 3D visualization using OpenGL
 \end{itemize}
 
-Mode switching occurs automatically after AI generation completes. The system handles blocking AI operations gracefully, with console feedback during processing.
+Mode switching occurs automatically after AI generation completes. The system handles blocking AI operations gracefully through threaded loading and progress callbacks. A project management system saves all generated materials (albedo, depth, normal, roughness) in organized project folders, enabling users to reload previous work. The interface includes template loading, project browsing, and real-time progress feedback during generation.
 
 % ==========================================
 % 5. EVALUATION
 % ==========================================
 \section{Evaluation}
 
-\subsection{Visual Quality Assessment}
-
-We evaluate the visual quality of generated materials through qualitative analysis. Figure~\ref{fig:results} shows example results from various sketch inputs. The system successfully generates detailed textures that preserve the overall structure of input sketches while adding realistic surface details.
+\textbf{Visual Quality Assessment.} We evaluate the visual quality of generated materials through qualitative analysis. Figure~\ref{fig:results} shows example results from various sketch inputs. The system successfully generates detailed textures that preserve the overall structure of input sketches while adding realistic surface details.
 
 \begin{figure}[h]
 \centering
@@ -265,11 +280,9 @@ We evaluate the visual quality of generated materials through qualitative analys
 \label{fig:results}
 \end{figure}
 
-The Phong lighting model provides realistic illumination, with specular highlights enhancing surface detail. Displacement mapping creates visible geometric relief, while normal mapping adds fine-scale surface variation. The combination produces materials that appear three-dimensional and realistic.
+The Phong lighting model provides realistic illumination, with specular highlights enhanced by roughness map modulation. Displacement mapping creates visible geometric relief, while normal mapping adds fine-scale surface variation. The inclusion of roughness maps enables more physically accurate material appearance, with rougher surfaces exhibiting broader, dimmer specular highlights. The combination produces materials that appear three-dimensional and realistic.
 
-\subsection{Performance Metrics}
-
-Performance measurements were conducted on multiple hardware configurations:
+\textbf{Performance Metrics.} Performance measurements were conducted on multiple hardware configurations:
 
 \begin{table}[h]
 \centering
@@ -288,9 +301,7 @@ Intel i7-10700K (CPU) & 420s & 45s \\
 
 Rendering performance achieves 60 FPS on all tested configurations, as the classical rendering pipeline is GPU-accelerated and computationally efficient. The AI generation stage is the primary bottleneck, but remains acceptable for interactive use on GPU-enabled systems.
 
-\subsection{Integration Effectiveness}
-
-The integration between AI and classical components demonstrates several advantages:
+\textbf{Integration Effectiveness.} The integration between AI and classical components demonstrates several advantages:
 \begin{itemize}
     \item \textit{Quality}: AI-generated textures provide rich detail that would be difficult to create manually
     \item \textit{Speed}: Classical rendering enables real-time visualization of generated materials
@@ -304,81 +315,68 @@ The system successfully bridges the gap between AI content generation and classi
 % ==========================================
 \section{Discussion}
 
-\subsection{Findings}
-
-Our implementation demonstrates that modern AI models can be effectively integrated with classical rendering pipelines. The combination of Stable Diffusion for texture generation and learned depth estimation provides a complete material creation workflow. The classical rendering pipeline ensures real-time performance and realistic lighting, while AI components handle the complex task of content generation.
+\textbf{Findings.} Our implementation demonstrates that modern AI models can be effectively integrated with classical rendering pipelines. The combination of ControlNet-based Stable Diffusion for texture generation and learned depth estimation provides a complete PBR material creation workflow. The classical rendering pipeline ensures real-time performance and realistic lighting, while AI components handle the complex task of content generation.
 
 Key observations:
 \begin{itemize}
-    \item Stable Diffusion effectively preserves sketch structure while adding realistic detail
+    \item ControlNet effectively preserves sketch structure while adding realistic detail, providing better structural control than standard Img2Img approaches
     \item Depth estimation provides sufficient geometric information for convincing displacement mapping
     \item Normal maps derived from depth enhance surface detail without additional computation
-    \item The Phong lighting model, despite its simplicity, produces visually appealing results when combined with high-quality textures
+    \item Roughness maps derived from albedo provide physically plausible material properties without requiring additional AI processing
+    \item The Phong lighting model, enhanced with roughness modulation, produces visually appealing results when combined with high-quality textures
+    \item Threaded AI loading prevents UI blocking during model initialization, improving user experience
 \end{itemize}
 
-\subsection{Limitations}
+\textbf{Limitations.} Several limitations are present in the current implementation:
 
-Several limitations are present in the current implementation:
+\textbf{Generation Time}
+AI generation requires 30-60 seconds on GPU hardware, which may interrupt workflow for rapid iteration. CPU execution is significantly slower (5-10 minutes), limiting accessibility.
 
-\textbf{Generation Time:} AI generation requires 30-60 seconds on GPU hardware, which may interrupt workflow for rapid iteration. CPU execution is significantly slower (5-10 minutes), limiting accessibility.
+\textbf{Resolution Constraints}
+Textures are generated at 512x512 resolution due to model constraints. Higher resolutions would improve quality but require more computational resources.
 
-\textbf{Resolution Constraints:} Textures are generated at 512x512 resolution due to model constraints. Higher resolutions would improve quality but require more computational resources.
+\textbf{Blocking Operations}
+The current implementation blocks the UI during AI generation. Asynchronous processing would improve user experience.
 
-\textbf{Blocking Operations:} The current implementation blocks the UI during AI generation. Asynchronous processing would improve user experience.
+\textbf{Limited Control}
+Users have limited control over generation parameters. More granular control over texture style, detail level, and geometric properties would enhance usability.
 
-\textbf{Limited Control:} Users have limited control over generation parameters. More granular control over texture style, detail level, and geometric properties would enhance usability.
-
-\textbf{Lighting Constraints:} The system uses a fixed lighting setup. Dynamic lighting or multiple light sources would provide more realistic visualization.
-
-\subsection{Future Work}
-
-Several directions for future improvement:
-
-\textbf{Performance Optimization:}
-\begin{itemize}
-    \item Implement asynchronous AI generation with threading
-    \item Add texture caching to avoid regeneration
-    \item Optimize model loading and inference
-\end{itemize}
-
-\textbf{Enhanced Features:}
-\begin{itemize}
-    \item Support for higher resolution texture generation
-    \item Multiple lighting setups and dynamic lighting
-    \item Material parameter editing (roughness, metallic, etc.)
-    \item Export functionality for game engines (Unity, Unreal)
-    \item Animation support for material sequences
-\end{itemize}
-
-\textbf{Advanced AI Integration:}
-\begin{itemize}
-    \item Fine-tuned models for specific material types
-    \item Style transfer capabilities
-    \item Multi-view consistency for 3D texture generation
-    \item Integration with NeRF or Gaussian Splatting for novel view synthesis
-\end{itemize}
-
-\textbf{User Experience:}
-\begin{itemize}
-    \item Real-time preview during generation
-    \item Brush-based editing of generated textures
-    \item Material library and presets
-    \item Collaborative features for team workflows
-\end{itemize}
+\textbf{Lighting Constraints}
+The system uses a fixed lighting setup. Dynamic lighting or multiple light sources would provide more realistic visualization.
 
 % ==========================================
-% 7. CONCLUSION
+% 7. FUTURE WORK
+% ==========================================
+\section{Future Work}
+
+Several directions can guide future improvements to the system.
+
+\textbf{Performance Optimization}
+Performance can be enhanced by implementing asynchronous AI generation using threading, introducing texture caching to avoid unnecessary regeneration, and optimizing both model loading and inference times.
+
+\textbf{Enhanced Features}
+Enhancements could include support for higher resolution texture generation, the addition of multiple lighting setups and dynamic lighting, and enabling users to edit material parameters such as roughness and metallic properties. Providing export functionality for integration with game engines like Unity or Unreal, along with animation support for material sequences, would further improve usability.
+
+\textbf{Advanced AI Integration}
+Advances in AI integration may involve fine-tuning models for specific material types, adding style transfer capabilities, and ensuring multi-view consistency in 3D texture generation. Incorporating methods such as NeRF or Gaussian Splatting would enable novel view synthesis directly from generated materials.
+
+\textbf{User Experience}
+User experience can be improved by developing a real-time preview of material generation, allowing brush-based editing of generated textures, and providing a material library with presets. Additionally, incorporating collaborative features would facilitate workflows for teams.
+
+
+% ==========================================
+% 8. CONCLUSION
 % ==========================================
 \section{Conclusion}
 
-We have presented Sketch-to-Material Studio, a system that successfully integrates classical OpenGL rendering with modern AI-based texture generation. Our approach demonstrates that diffusion models and learned depth estimation can be effectively combined with classical graphics techniques to create a complete material creation workflow. The system enables users to generate high-quality 3D materials from simple sketches, with real-time visualization through classical rendering pipelines.
+We have presented Sketch-to-Material Studio, a system that successfully integrates classical OpenGL rendering with modern AI-based texture generation. Our approach demonstrates that ControlNet-based diffusion models and learned depth estimation can be effectively combined with classical graphics techniques to create a complete PBR material creation workflow. The system enables users to generate high-quality 3D materials (albedo, depth, normal, and roughness maps) from simple sketches, with real-time visualization through classical rendering pipelines. The use of ControlNet ensures that generated textures preserve the structural intent of user sketches while adding realistic detail.
 
 The integration of AI and classical components provides complementary strengths: AI handles complex content generation while classical techniques ensure real-time performance and realistic lighting. This combination addresses the challenge of rapid material prototyping in 3D graphics workflows, making material creation more accessible to artists and developers.
 
 Future work will focus on performance optimization, enhanced user controls, and advanced AI integration to further improve the system's capabilities and usability.
 
 % ==========================================
-% 8. REFERENCES
+% 9. REFERENCES
 % ==========================================
 \begin{thebibliography}{99}
 
@@ -421,6 +419,11 @@ Jonathan Ho, Ajay Jain, and Pieter Abbeel.
 Robin Rombach, Andreas Blattmann, Dominik Lorenz, Patrick Esser, and Björn Ommer.
 \newblock High-resolution image synthesis with latent diffusion models.
 \newblock In \textit{Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition}, pages 10684--10695, 2022.
+
+\bibitem{zhang2023adding}
+Lvmin Zhang and Maneesh Agrawala.
+\newblock Adding conditional control to text-to-image diffusion models.
+\newblock \textit{arXiv preprint arXiv:2302.05543}, 2023.
 
 \bibitem{saxena2009make3d}
 Ashutosh Saxena, Min Sun, and Andrew Y. Ng.
