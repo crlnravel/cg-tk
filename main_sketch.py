@@ -718,7 +718,7 @@ class Renderer3D:
             OpenGL.GL.shaders.compileShader(FRAGMENT_SHADER, GL_FRAGMENT_SHADER),
         )
         self.texture_ids = [0, 0, 0, 0]
-        self.cam = [0.0, 0.0, 1.3] 
+        self.cam = [0.0, 0.0, 2.0]  # [pitch, yaw, distance] - increased initial distance 
 
     def create_plane(self):
         verts, inds = [], []
@@ -828,6 +828,43 @@ def draw_modal_overlay_3d(surface, w, h, title, lines):
     hint = font.render("Press H to Close/Open Help", True, THEME["accent"])
     overlay.blit(hint, (mx + 30, my + mh - 40))
     surface.blit(overlay, (0, 0))
+
+def draw_3d_controls_overlay(surface, w, h):
+    """Draw a small control panel on the top-left corner"""
+    overlay = pygame.Surface((w, h), pygame.SRCALPHA)
+    
+    # Small font for controls
+    font = pygame.font.SysFont("Segoe UI", 14)
+    small_font = pygame.font.SysFont("Segoe UI", 12)
+    
+    # Control panel background
+    panel_w, panel_h = 220, 180
+    px, py = 10, 10
+    pygame.draw.rect(overlay, (20, 20, 25, 200), (px, py, panel_w, panel_h), border_radius=8)
+    pygame.draw.rect(overlay, THEME["accent"], (px, py, panel_w, panel_h), width=1, border_radius=8)
+    
+    # Title
+    title = font.render("3D Controls", True, (255, 255, 255))
+    overlay.blit(title, (px + 10, py + 8))
+    
+    # Controls text
+    controls = [
+        "W/S - Rotate Up/Down",
+        "A/D - Rotate Left/Right",
+        "R/E - Zoom In/Out",
+        "Q - Reset Camera",
+        "H - Toggle Help",
+        "ESC - Back to Paint"
+    ]
+    
+    y = py + 30
+    for ctrl in controls:
+        text = small_font.render(ctrl, True, (200, 200, 200))
+        overlay.blit(text, (px + 10, y))
+        y += 22
+    
+    surface.blit(overlay, (0, 0))
+
 
 
 # ==========================================
@@ -1082,8 +1119,9 @@ def main():
             if keys[K_s]: renderer.cam[0] = min(89, renderer.cam[0] + 2)
             if keys[K_a]: renderer.cam[1] -= 2
             if keys[K_d]: renderer.cam[1] += 2
-            if keys[K_r]: renderer.cam[2] = max(0.1, renderer.cam[2] - 0.05)
-            if keys[K_e]: renderer.cam[2] += 0.05
+            if keys[K_r]: renderer.cam[2] = max(0.5, renderer.cam[2] - 0.1)  # Zoom in (closer, min 0.5)
+            if keys[K_e]: renderer.cam[2] = min(10.0, renderer.cam[2] + 0.1)  # Zoom out (farther, max 10.0)
+            if keys[K_q]: renderer.cam = [0.0, 0.0, 2.0]  # Reset camera to initial state
 
             glClearColor(0.1, 0.1, 0.1, 1.0)
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
@@ -1093,11 +1131,16 @@ def main():
 
             try:
                 overlay_surf = pygame.display.get_surface()
+                # Always draw the control overlay
+                draw_3d_controls_overlay(overlay_surf, W, H)
+                # Optionally draw the help modal
                 if SHOW_3D_HELP and overlay_surf:
                     draw_modal_overlay_3d(overlay_surf, W, H, "3D Controls", [
                         "W / S : Rotate Up / Down",
                         "A / D : Rotate Left / Right",
                         "R / E : Zoom In / Out",
+                        "Q : Reset Camera",
+                        "H : Toggle Help",
                         "ESC : Return to Paint"
                     ])
             except:
