@@ -2,13 +2,13 @@
 
 A computer graphics application that combines classical OpenGL rendering with AI-based texture generation. Transform your 2D sketches into interactive 3D materials using Stable Diffusion and depth estimation models.
 
-![Result](readme_images/result.jpeg)
+![Result](assets/result.png)
 
 ## Demo Video
 
 Watch the demo videos to see the application in action:
 
-📹 [Demo Videos](https://drive.google.com/drive/folders/1LKZ917a3fby3fEOwwzvlbfAKKNbthBI5?usp=sharing)
+📹 [Demo Video](https://drive.google.com/file/d/1rqnt2-XbmlUApWPZ-2AUKFLzE8TArEf4/view?usp=sharing)
 
 ## Requirements
 
@@ -59,25 +59,41 @@ python main_sketch.py
 
 ### Basic Workflow
 
-1. **Draw or Upload Sketch**
-   - Draw on the canvas with your mouse
-   - Or drag & drop an image file onto the window
-   - Use number keys (1-5) to select colors
-   - Press 'C' to clear the canvas
+1. **Draw Sketch**
+   - Draw on the canvas with your mouse (white brush on black background)
+   - Use **[** and **]** keys to adjust brush size
+   - Click "Clear Canvas" button to reset the canvas
+   - Use template buttons (numbered) to load example sketches
 
-   ![Input Sketch](readme_images/sketch_processed.png)
+   ![Input Sketch](assets/sketch_processed.png)
 
 2. **Generate 3D Material**
-   - Press **ENTER** to start generation
-   - Enter a text prompt in the console (e.g., "wood texture", "brick wall", "marble")
+   - Enter a project name and text prompt in the sidebar
+   - Click **GENERATE** button to start generation
    - Wait for AI processing (may take 1-3 minutes depending on hardware)
 
 3. **View 3D Result**
    - The application automatically switches to 3D view mode
-   - Drag with left mouse button to rotate camera
+   - Use keyboard controls to navigate (see Controls section)
    - Press **ESC** to return to paint mode
 
-   ![3D Result](readme_images/result.jpeg)
+   ![3D Result](assets/result.png)
+
+### Controls
+
+#### Paint Mode
+- **Mouse Drag**: Draw on canvas (white brush)
+- **[** / **]** Keys: Decrease / Increase brush size
+- **Clear Canvas Button**: Reset the canvas
+- **Template Buttons**: Load example sketches
+- **Load Project Button**: Load previously generated materials
+
+#### 3D View Mode
+- **W / S**: Rotate camera up / down
+- **A / D**: Rotate camera left / right
+- **R / E**: Zoom in / out
+- **H**: Toggle help overlay
+- **ESC**: Return to paint mode
 
 ### Generated Texture Maps
 
@@ -85,7 +101,7 @@ The application generates several texture maps for realistic 3D rendering:
 
 | Albedo | Depth | Normal | Roughness |
 |--------|-------|--------|-----------|
-| ![Albedo](readme_images/albedo.png) | ![Depth](readme_images/depth.png) | ![Normal](readme_images/normal.png) | ![Roughness](readme_images/roughness.png) |
+| ![Albedo](assets/albedo.png) | ![Depth](assets/depth.png) | ![Normal](assets/normal.png) | ![Roughness](assets/roughness.png) |
 
 ## Authors
 
