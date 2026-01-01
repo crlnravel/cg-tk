@@ -4,6 +4,12 @@ A computer graphics application that combines classical OpenGL rendering with AI
 
 ![Result](readme_images/result.jpeg)
 
+## Demo Video
+
+Watch the demo videos to see the application in action:
+
+📹 [Demo Videos](https://drive.google.com/drive/folders/1LKZ917a3fby3fEOwwzvlbfAKKNbthBI5?usp=sharing)
+
 ## Requirements
 
 - **Python**: 3.8 or higher
@@ -81,11 +87,14 @@ The application generates several texture maps for realistic 3D rendering:
 |--------|-------|--------|-----------|
 | ![Albedo](readme_images/albedo.png) | ![Depth](readme_images/depth.png) | ![Normal](readme_images/normal.png) | ![Roughness](readme_images/roughness.png) |
 
-### Controls
+## Authors
 
-- **Mouse Drag**: Draw on canvas (paint mode) / Rotate camera (3D mode)
-- **1-5 Keys**: Select color from palette
-- **C Key**: Clear canvas
-- **ENTER**: Generate 3D material from sketch
-- **ESC**: Return to paint mode from 3D view
-- **Drag & Drop**: Load image file onto canvas
+- **Carleano Ravelza Wongso** - carleano.ravelza@ui.ac.id
+- **Andrew Devito Aryo** - andrew.devito@ui.ac.id
+- **Arya Raditya Kusuma** - arya.raditya@ui.ac.id
+- **Tristan Agra Yudhistira** - tristan.agra@ui.ac.id
+
+---
+
+**CSCE604029 • Computer Graphics • Semester Gasal 2025/2026**  
+**Fakultas Ilmu Komputer, Universitas Indonesia**
