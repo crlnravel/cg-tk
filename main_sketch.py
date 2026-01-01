@@ -43,7 +43,7 @@ THEME = {
     "modal_bg": (40, 40, 45, 250),
     "overlay_bg": (0, 0, 0, 200),
     "input_bg": (45, 45, 50),
-    "input_active": (60, 60, 65)
+    "input_active": (60, 60, 65),
 }
 
 # Ensure Directories
@@ -55,6 +55,7 @@ if not os.path.exists("templates/sample_1"):
     os.makedirs("templates/sample_1")
     with open("templates/sample_1/prompt.txt", "w") as f:
         f.write("A futuristic sci-fi panel")
+
 
 # ==========================================
 # 1. ADVANCED AI PIPELINE (THREADED)
@@ -78,7 +79,7 @@ class AIPipeline:
         )
         if DEVICE == "cuda":
             self.pipe.enable_model_cpu_offload()
-            
+
         self.depth_pipe = depth_pipeline(
             task="depth-estimation",
             model="LiheYoung/depth-anything-small-hf",
@@ -91,7 +92,8 @@ class AIPipeline:
         os.makedirs(project_path, exist_ok=True)
 
         # 1. Prepare Sketch
-        if progress_callback: progress_callback(0.1, "Processing Sketch...")
+        if progress_callback:
+            progress_callback(0.1, "Processing Sketch...")
         sketch = Image.open(init_image_path).convert("RGB").resize((512, 512))
         sketch_gray = sketch.convert("L")
         sketch_array = np.array(sketch_gray)
@@ -101,11 +103,12 @@ class AIPipeline:
         sketch.save(os.path.join(project_path, "sketch_processed.png"))
 
         # 2. Generate Albedo
-        if progress_callback: progress_callback(0.2, "Generating Albedo...")
-        
+        if progress_callback:
+            progress_callback(0.2, "Generating Albedo...")
+
         pos_prompt = f"{prompt}, seamless texture, top down view, flat lighting, 8k, highly detailed, photorealistic material"
         neg_prompt = "perspective, 3d, shadows, people, objects, text, watermark, blurry, low quality, distortion"
-        
+
         # Internal Diffusers Callback
         def pipe_callback(step, timestep, latents):
             # Map steps (approx 30) to progress 0.2 -> 0.7
@@ -121,14 +124,15 @@ class AIPipeline:
             controlnet_conditioning_scale=0.7,
             guidance_scale=8.0,
             callback=pipe_callback,
-            callback_steps=1
+            callback_steps=1,
         ).images[0]
-        
+
         p_albedo = os.path.join(project_path, "albedo.png")
         albedo.save(p_albedo)
 
         # 3. Generate Roughness
-        if progress_callback: progress_callback(0.8, "Generating Roughness...")
+        if progress_callback:
+            progress_callback(0.8, "Generating Roughness...")
         img_cv = cv2.cvtColor(np.array(albedo), cv2.COLOR_RGB2GRAY)
         roughness = cv2.normalize(img_cv, None, 0, 255, cv2.NORM_MINMAX)
         roughness = 255 - roughness
@@ -136,7 +140,8 @@ class AIPipeline:
         Image.fromarray(roughness).save(p_rough)
 
         # 4. Generate Depth
-        if progress_callback: progress_callback(0.9, "Calculating Depth...")
+        if progress_callback:
+            progress_callback(0.9, "Calculating Depth...")
         depth_data = self.depth_pipe(albedo)["depth"].resize((512, 512))
         depth_np = np.array(depth_data)
         d_min, d_max = depth_np.min(), depth_np.max()
@@ -146,7 +151,8 @@ class AIPipeline:
         Image.fromarray(depth_np.astype(np.uint8)).save(p_depth)
 
         # 5. Generate Normal
-        if progress_callback: progress_callback(0.95, "Calculating Normals...")
+        if progress_callback:
+            progress_callback(0.95, "Calculating Normals...")
         d_np = depth_np.astype(np.float32)
         sobelx = cv2.Sobel(d_np, cv2.CV_64F, 1, 0, ksize=5)
         sobely = cv2.Sobel(d_np, cv2.CV_64F, 0, 1, ksize=5)
@@ -155,8 +161,9 @@ class AIPipeline:
         normal = ((normal / norm) * 0.5 + 0.5) * 255
         p_normal = os.path.join(project_path, "normal.png")
         Image.fromarray(normal.astype(np.uint8)).save(p_normal)
-        
-        if progress_callback: progress_callback(1.0, "Done!")
+
+        if progress_callback:
+            progress_callback(1.0, "Done!")
 
         return (p_albedo, p_depth, p_normal, p_rough)
 
@@ -176,7 +183,7 @@ class Button:
     def draw(self, surface, font_dict, scroll_y=0):
         # Adjust position based on scroll
         draw_rect = self.rect.move(0, -scroll_y)
-        
+
         # Simple clipping check
         screen_h = surface.get_height()
         if draw_rect.bottom < 0 or draw_rect.top > screen_h:
@@ -186,7 +193,7 @@ class Button:
         if self.color == THEME["accent"]:
             col = (80, 150, 255) if self.hover else THEME["accent"]
         pygame.draw.rect(surface, col, draw_rect, border_radius=6)
-        
+
         font = font_dict.get(self.text_size, font_dict[16])
         txt_surf = font.render(self.text, True, THEME["text"])
         txt_rect = txt_surf.get_rect(center=draw_rect.center)
@@ -203,6 +210,7 @@ class Button:
         adj_rect = self.rect.move(0, -scroll_y)
         self.hover = adj_rect.collidepoint(pos)
 
+
 class Slider:
     def __init__(self, x, y, w, min_val, max_val, initial):
         self.rect = pygame.Rect(x, y, w, 20)
@@ -213,7 +221,7 @@ class Slider:
 
     def draw(self, screen, font, scroll_y=0):
         draw_rect = self.rect.move(0, -scroll_y)
-        
+
         # Draw Label
         lbl = font.render(f"Brush Size: {int(self.val)}px", True, (150, 150, 150))
         screen.blit(lbl, (draw_rect.x, draw_rect.y - 22))
@@ -232,7 +240,7 @@ class Slider:
     def handle_event(self, event, scroll_y=0):
         # Adjust rect for hit detection
         adj_rect = self.rect.move(0, -scroll_y)
-        
+
         if event.type == MOUSEBUTTONDOWN:
             if adj_rect.inflate(0, 10).collidepoint(event.pos):
                 self.dragging = True
@@ -281,7 +289,7 @@ class PaintInterface:
         self.last_pos = None
         self.scroll_y = 0
         self.max_scroll = 0
-        
+
         # Inputs
         self.project_name = f"project_{int(time.time())}"
         self.prompt = "sci-fi metal texture"
@@ -294,21 +302,33 @@ class PaintInterface:
             14: pygame.font.SysFont("Segoe UI", 14),
             16: pygame.font.SysFont("Segoe UI", 16),
             18: pygame.font.SysFont("Segoe UI", 18, bold=True),
-            24: pygame.font.SysFont("Segoe UI", 24, bold=True)
+            24: pygame.font.SysFont("Segoe UI", 24, bold=True),
         }
 
         # UI Elements
         # Calculate Y positions relative to top of scrollable content area
         # Starting Y = 50 (below header)
-        
+
         self.size_slider = Slider(20, 480, SIDEBAR_WIDTH - 40, 2, 100, 20)
-        
+
         # Hint Button (Top Right Fixed)
-        self.hint_btn = Button((SIDEBAR_WIDTH - 40, 10, 30, 30), "?", lambda: self.toggle_hint(), (60, 60, 65), 18)
-        
+        self.hint_btn = Button(
+            (SIDEBAR_WIDTH - 40, 10, 30, 30),
+            "?",
+            lambda: self.toggle_hint(),
+            (60, 60, 65),
+            18,
+        )
+
         # Scan templates
-        self.templates = sorted([d for d in os.listdir("templates") if os.path.isdir(os.path.join("templates", d))])
-        
+        self.templates = sorted(
+            [
+                d
+                for d in os.listdir("templates")
+                if os.path.isdir(os.path.join("templates", d))
+            ]
+        )
+
         self.tpl_buttons = []
         for i, tpl in enumerate(self.templates):
             row = i // 3
@@ -316,21 +336,45 @@ class PaintInterface:
             size = (SIDEBAR_WIDTH - 50) // 3
             x = 20 + col * (size + 5)
             y = 350 + row * (40)
-            btn = Button((x, y, size, 30), str(i+1), lambda t=tpl: self.load_template(t), text_size=14)
+            btn = Button(
+                (x, y, size, 30),
+                str(i + 1),
+                lambda t=tpl: self.load_template(t),
+                text_size=14,
+            )
             self.tpl_buttons.append(btn)
 
         # Main Buttons
         btn_y = 540
         self.buttons = [
-            Button((20, btn_y, SIDEBAR_WIDTH - 40, 40), "GENERATE", lambda: "GENERATE", THEME["accent"], 18),
-            Button((20, btn_y + 50, SIDEBAR_WIDTH - 40, 40), "Clear Canvas", lambda: self.clear_canvas()),
-            Button((20, btn_y + 100, SIDEBAR_WIDTH - 40, 40), "Load Project", lambda: self.toggle_load_modal()),
+            Button(
+                (20, btn_y, SIDEBAR_WIDTH - 40, 40),
+                "GENERATE",
+                lambda: "GENERATE",
+                THEME["accent"],
+                18,
+            ),
+            Button(
+                (20, btn_y + 50, SIDEBAR_WIDTH - 40, 40),
+                "Clear Canvas",
+                lambda: self.clear_canvas(),
+            ),
+            Button(
+                (20, btn_y + 100, SIDEBAR_WIDTH - 40, 40),
+                "Load Project",
+                lambda: self.toggle_load_modal(),
+            ),
             # Exit button is relative to screen bottom usually, but let's make it part of scroll
-            Button((20, btn_y + 160, SIDEBAR_WIDTH - 40, 40), "Exit", lambda: "EXIT", (180, 50, 50))
+            Button(
+                (20, btn_y + 160, SIDEBAR_WIDTH - 40, 40),
+                "Exit",
+                lambda: "EXIT",
+                (180, 50, 50),
+            ),
         ]
-        
+
         # Calculate Max Scroll
-        total_h = btn_y + 220 # Approximate bottom
+        total_h = btn_y + 220  # Approximate bottom
         self.max_scroll = max(0, total_h - self.screen_h)
 
         self.project_list_buttons = []
@@ -341,7 +385,7 @@ class PaintInterface:
     def toggle_hint(self):
         self.show_hint = not self.show_hint
         self.show_load_modal = False
-        
+
     def toggle_load_modal(self):
         self.show_load_modal = not self.show_load_modal
         self.show_hint = False
@@ -349,18 +393,24 @@ class PaintInterface:
             self.refresh_project_list()
 
     def refresh_project_list(self):
-        projects = sorted([d for d in os.listdir("projects") if os.path.isdir(os.path.join("projects", d))])
+        projects = sorted(
+            [
+                d
+                for d in os.listdir("projects")
+                if os.path.isdir(os.path.join("projects", d))
+            ]
+        )
         self.project_list_buttons = []
         cols = 3
         w = 180
         h = 40
         gap = 10
-        start_x = (self.screen_w - (cols * w + (cols-1)*gap)) // 2
+        start_x = (self.screen_w - (cols * w + (cols - 1) * gap)) // 2
         start_y = 150
         for i, proj in enumerate(projects):
             r = i // cols
             c = i % cols
-            rect = (start_x + c*(w+gap), start_y + r*(h+gap), w, h)
+            rect = (start_x + c * (w + gap), start_y + r * (h + gap), w, h)
             cb = lambda p=proj: ("LOAD_PROJECT", p)
             self.project_list_buttons.append(Button(rect, proj[:20], cb, text_size=14))
 
@@ -371,8 +421,9 @@ class PaintInterface:
             try:
                 img = pygame.image.load(img_path)
                 img = pygame.transform.scale(img, CANVAS_SIZE)
-                self.canvas_surf.blit(img, (0,0))
-            except: pass
+                self.canvas_surf.blit(img, (0, 0))
+            except:
+                pass
         txt_path = os.path.join(path, "prompt.txt")
         if os.path.exists(txt_path):
             with open(txt_path, "r") as f:
@@ -389,17 +440,20 @@ class PaintInterface:
 
     def handle_event(self, event):
         if self.show_hint:
-            if event.type == MOUSEBUTTONDOWN: self.show_hint = False
+            if event.type == MOUSEBUTTONDOWN:
+                self.show_hint = False
             return None
-            
+
         if self.show_load_modal:
             if event.type == MOUSEBUTTONDOWN:
                 for btn in self.project_list_buttons:
                     res = btn.check_click(event.pos)
-                    if res: return res
+                    if res:
+                        return res
                 self.show_load_modal = False
             if event.type == MOUSEMOTION:
-                for btn in self.project_list_buttons: btn.check_hover(event.pos)
+                for btn in self.project_list_buttons:
+                    btn.check_hover(event.pos)
             return None
 
         # Sidebar Scroll
@@ -410,7 +464,8 @@ class PaintInterface:
 
         # Hint Button (Fixed)
         if event.type == MOUSEBUTTONDOWN:
-            if self.hint_btn.check_click(event.pos): return None
+            if self.hint_btn.check_click(event.pos):
+                return None
         if event.type == MOUSEMOTION:
             self.hint_btn.check_hover(event.pos)
 
@@ -427,35 +482,58 @@ class PaintInterface:
             if self.drawing:
                 c_pos = self.get_canvas_pos(event.pos)
                 if c_pos and self.last_pos:
-                    pygame.draw.line(self.canvas_surf, self.brush_color, self.last_pos, c_pos, self.brush_size)
-                    pygame.draw.circle(self.canvas_surf, self.brush_color, self.last_pos, self.brush_size // 2)
-                    pygame.draw.circle(self.canvas_surf, self.brush_color, c_pos, self.brush_size // 2)
+                    pygame.draw.line(
+                        self.canvas_surf,
+                        self.brush_color,
+                        self.last_pos,
+                        c_pos,
+                        self.brush_size,
+                    )
+                    pygame.draw.circle(
+                        self.canvas_surf,
+                        self.brush_color,
+                        self.last_pos,
+                        self.brush_size // 2,
+                    )
+                    pygame.draw.circle(
+                        self.canvas_surf, self.brush_color, c_pos, self.brush_size // 2
+                    )
                     self.last_pos = c_pos
-                elif c_pos: self.last_pos = c_pos
-                else: self.last_pos = None
+                elif c_pos:
+                    self.last_pos = c_pos
+                else:
+                    self.last_pos = None
 
         elif event.type == MOUSEBUTTONDOWN:
             if event.button == 1:
                 # Scrollable Buttons
                 for btn in self.buttons + self.tpl_buttons:
                     res = btn.check_click(event.pos, self.scroll_y)
-                    if res: return res
+                    if res:
+                        return res
 
                 # Adjust rects for scroll
                 proj_rect = pygame.Rect(20, 80 - self.scroll_y, SIDEBAR_WIDTH - 40, 30)
-                prompt_rect = pygame.Rect(20, 160 - self.scroll_y, SIDEBAR_WIDTH - 40, 100)
+                prompt_rect = pygame.Rect(
+                    20, 160 - self.scroll_y, SIDEBAR_WIDTH - 40, 100
+                )
 
-                if proj_rect.collidepoint(event.pos): self.active_field = 'project'
-                elif prompt_rect.collidepoint(event.pos): self.active_field = 'prompt'
+                if proj_rect.collidepoint(event.pos):
+                    self.active_field = "project"
+                elif prompt_rect.collidepoint(event.pos):
+                    self.active_field = "prompt"
                 else:
-                    if not self.canvas_rect.collidepoint(event.pos): self.active_field = None
+                    if not self.canvas_rect.collidepoint(event.pos):
+                        self.active_field = None
 
                 # Canvas
                 c_pos = self.get_canvas_pos(event.pos)
                 if c_pos:
                     self.drawing = True
                     self.last_pos = c_pos
-                    pygame.draw.circle(self.canvas_surf, self.brush_color, c_pos, self.brush_size // 2)
+                    pygame.draw.circle(
+                        self.canvas_surf, self.brush_color, c_pos, self.brush_size // 2
+                    )
 
         elif event.type == MOUSEBUTTONUP:
             if event.button == 1:
@@ -463,15 +541,19 @@ class PaintInterface:
                 self.last_pos = None
 
         elif event.type == KEYDOWN:
-            if self.active_field == 'project':
-                if event.key == K_RETURN: self.active_field = None
-                elif event.key == K_BACKSPACE: self.project_name = self.project_name[:-1]
-                else: 
+            if self.active_field == "project":
+                if event.key == K_RETURN:
+                    self.active_field = None
+                elif event.key == K_BACKSPACE:
+                    self.project_name = self.project_name[:-1]
+                else:
                     if len(self.project_name) < 20 and event.unicode.isprintable():
                         self.project_name += event.unicode
-            elif self.active_field == 'prompt':
-                if event.key == K_RETURN: self.active_field = None
-                elif event.key == K_BACKSPACE: self.prompt = self.prompt[:-1]
+            elif self.active_field == "prompt":
+                if event.key == K_RETURN:
+                    self.active_field = None
+                elif event.key == K_BACKSPACE:
+                    self.prompt = self.prompt[:-1]
                 else:
                     if len(self.prompt) < 60 and event.unicode.isprintable():
                         self.prompt += event.unicode
@@ -491,9 +573,13 @@ class PaintInterface:
         screen.blit(overlay, (0, 0))
         mw, mh = 600, 400
         mx, my = (self.screen_w - mw) // 2, (self.screen_h - mh) // 2
-        pygame.draw.rect(screen, (10, 10, 10), (mx+4, my+4, mw, mh), border_radius=12)
+        pygame.draw.rect(
+            screen, (10, 10, 10), (mx + 4, my + 4, mw, mh), border_radius=12
+        )
         pygame.draw.rect(screen, (50, 50, 55), (mx, my, mw, mh), border_radius=12)
-        pygame.draw.rect(screen, THEME["accent"], (mx, my, mw, mh), width=2, border_radius=12)
+        pygame.draw.rect(
+            screen, THEME["accent"], (mx, my, mw, mh), width=2, border_radius=12
+        )
         t_surf = self.fonts[24].render(title, True, (255, 255, 255))
         screen.blit(t_surf, (mx + 30, my + 30))
         y = my + 80
@@ -512,20 +598,25 @@ class PaintInterface:
         mw, mh = 700, 500
         mx, my = (self.screen_w - mw) // 2, (self.screen_h - mh) // 2
         pygame.draw.rect(screen, (50, 50, 55), (mx, my, mw, mh), border_radius=12)
-        pygame.draw.rect(screen, THEME["accent"], (mx, my, mw, mh), width=2, border_radius=12)
+        pygame.draw.rect(
+            screen, THEME["accent"], (mx, my, mw, mh), width=2, border_radius=12
+        )
         t = self.fonts[24].render("Load Project", True, (255, 255, 255))
         screen.blit(t, (mx + 30, my + 30))
         if not self.project_list_buttons:
-             msg = self.fonts[16].render("No projects found in 'projects/' folder.", True, (200, 200, 200))
-             screen.blit(msg, (mx + 30, my + 100))
+            msg = self.fonts[16].render(
+                "No projects found in 'projects/' folder.", True, (200, 200, 200)
+            )
+            screen.blit(msg, (mx + 30, my + 100))
         else:
-            for btn in self.project_list_buttons: btn.draw(screen, self.fonts)
+            for btn in self.project_list_buttons:
+                btn.draw(screen, self.fonts)
 
     def draw_sidebar_content(self, screen):
         # Create a clip rect for the sidebar content (everything below header)
         content_rect = pygame.Rect(0, 50, SIDEBAR_WIDTH, self.screen_h - 50)
         screen.set_clip(content_rect)
-        
+
         # Offset all drawing by -self.scroll_y
         off = -self.scroll_y
 
@@ -533,27 +624,46 @@ class PaintInterface:
         lbl = self.fonts[14].render("Project Name:", True, (150, 150, 150))
         screen.blit(lbl, (20, 55 + off))
         proj_rect = pygame.Rect(20, 80 + off, SIDEBAR_WIDTH - 40, 30)
-        bg = THEME["input_active"] if self.active_field == 'project' else THEME["input_bg"]
+        bg = (
+            THEME["input_active"]
+            if self.active_field == "project"
+            else THEME["input_bg"]
+        )
         pygame.draw.rect(screen, bg, proj_rect, border_radius=4)
-        txt = self.fonts[16].render(self.project_name + ("|" if self.active_field == 'project' and time.time() % 1 > 0.5 else ""), True, (255, 255, 255))
+        txt = self.fonts[16].render(
+            self.project_name
+            + ("|" if self.active_field == "project" and time.time() % 1 > 0.5 else ""),
+            True,
+            (255, 255, 255),
+        )
         screen.blit(txt, (25, 85 + off))
 
         # Prompt Input
-        lbl = self.fonts[14].render(f"Prompt ({len(self.prompt)}/60):", True, (150, 150, 150))
+        lbl = self.fonts[14].render(
+            f"Prompt ({len(self.prompt)}/60):", True, (150, 150, 150)
+        )
         screen.blit(lbl, (20, 135 + off))
         prompt_rect = pygame.Rect(20, 160 + off, SIDEBAR_WIDTH - 40, 100)
-        bg = THEME["input_active"] if self.active_field == 'prompt' else THEME["input_bg"]
+        bg = (
+            THEME["input_active"]
+            if self.active_field == "prompt"
+            else THEME["input_bg"]
+        )
         pygame.draw.rect(screen, bg, prompt_rect, border_radius=4)
-        words = self.prompt.split(' ')
+        words = self.prompt.split(" ")
         lines = []
         curr_line = ""
         for word in words:
             test_line = curr_line + word + " "
-            if self.fonts[16].size(test_line)[0] < prompt_rect.width - 10: curr_line = test_line
+            if self.fonts[16].size(test_line)[0] < prompt_rect.width - 10:
+                curr_line = test_line
             else:
                 lines.append(curr_line)
                 curr_line = word + " "
-        lines.append(curr_line + ("|" if self.active_field == 'prompt' and time.time() % 1 > 0.5 else ""))
+        lines.append(
+            curr_line
+            + ("|" if self.active_field == "prompt" and time.time() % 1 > 0.5 else "")
+        )
         for i, line in enumerate(lines):
             t = self.fonts[16].render(line, True, (255, 255, 255))
             screen.blit(t, (25, 165 + i * 20 + off))
@@ -562,13 +672,17 @@ class PaintInterface:
         lbl = self.fonts[14].render("Templates:", True, (150, 150, 150))
         screen.blit(lbl, (20, 320 + off))
         if not self.tpl_buttons:
-             lbl_none = self.fonts[14].render("No templates in 'templates/'", True, (100, 100, 100))
-             screen.blit(lbl_none, (20, 350 + off))
-        for btn in self.tpl_buttons: btn.draw(screen, self.fonts, self.scroll_y)
+            lbl_none = self.fonts[14].render(
+                "No templates in 'templates/'", True, (100, 100, 100)
+            )
+            screen.blit(lbl_none, (20, 350 + off))
+        for btn in self.tpl_buttons:
+            btn.draw(screen, self.fonts, self.scroll_y)
 
         # Controls
         self.size_slider.draw(screen, self.fonts[14], self.scroll_y)
-        for btn in self.buttons: btn.draw(screen, self.fonts, self.scroll_y)
+        for btn in self.buttons:
+            btn.draw(screen, self.fonts, self.scroll_y)
 
         screen.set_clip(None)
 
@@ -579,47 +693,66 @@ class PaintInterface:
         grid_sz = 40
         for y in range(0, clip.height, grid_sz):
             for x in range(0, clip.width, grid_sz):
-                color = THEME["grid_light"] if (x // grid_sz + y // grid_sz) % 2 == 0 else THEME["grid_dark"]
-                pygame.draw.rect(screen, color, (clip.x + x, clip.y + y, grid_sz, grid_sz))
+                color = (
+                    THEME["grid_light"]
+                    if (x // grid_sz + y // grid_sz) % 2 == 0
+                    else THEME["grid_dark"]
+                )
+                pygame.draw.rect(
+                    screen, color, (clip.x + x, clip.y + y, grid_sz, grid_sz)
+                )
 
         # 2. Canvas
         shadow = self.canvas_rect.inflate(4, 4)
         pygame.draw.rect(screen, (10, 10, 10), shadow)
-        scaled_surf = pygame.transform.scale(self.canvas_surf, (self.disp_w, self.disp_h))
+        scaled_surf = pygame.transform.scale(
+            self.canvas_surf, (self.disp_w, self.disp_h)
+        )
         screen.blit(scaled_surf, self.canvas_rect)
 
         # 3. Sidebar Background
         pygame.draw.rect(screen, THEME["sidebar"], (0, 0, SIDEBAR_WIDTH, self.screen_h))
-        pygame.draw.line(screen, (50, 50, 50), (SIDEBAR_WIDTH, 0), (SIDEBAR_WIDTH, self.screen_h))
+        pygame.draw.line(
+            screen, (50, 50, 50), (SIDEBAR_WIDTH, 0), (SIDEBAR_WIDTH, self.screen_h)
+        )
 
         # Sidebar Header (Fixed)
         title = self.fonts[18].render("AI Material Studio", True, (255, 255, 255))
         screen.blit(title, (20, 15))
-        
+
         # Hint Button (Fixed)
         self.hint_btn.draw(screen, self.fonts)
 
         # Scrollable Content
         self.draw_sidebar_content(screen)
-        
+
         # Scrollbar Indicator (Simple)
         if self.max_scroll > 0:
             scroll_h = self.screen_h - 50
             bar_h = max(20, (scroll_h / (scroll_h + self.max_scroll)) * scroll_h)
             bar_y = 50 + (self.scroll_y / self.max_scroll) * (scroll_h - bar_h)
-            pygame.draw.rect(screen, (60, 60, 60), (SIDEBAR_WIDTH - 6, bar_y, 4, bar_h), border_radius=2)
+            pygame.draw.rect(
+                screen,
+                (60, 60, 60),
+                (SIDEBAR_WIDTH - 6, bar_y, 4, bar_h),
+                border_radius=2,
+            )
 
         # Overlays
         if self.show_hint:
-            self.draw_modal(screen, "How to Paint", [
-                "1. Draw white shapes on black (Depth/Structure).",
-                "2. Name your project and type a prompt.",
-                "3. Use [ ] to change brush size.",
-                "4. Click GENERATE to create PBR textures.",
-                "5. Templates let you start quickly.",
-                "6. Character limit for prompt is 60.",
-            ])
-            
+            self.draw_modal(
+                screen,
+                "How to Paint",
+                [
+                    "1. Draw white shapes on black (Depth/Structure).",
+                    "2. Name your project and type a prompt.",
+                    "3. Use [ ] to change brush size.",
+                    "4. Click GENERATE to create PBR textures.",
+                    "5. Templates let you start quickly.",
+                    "6. Character limit for prompt is 60.",
+                ],
+            )
+
         if self.show_load_modal:
             self.draw_load_modal(screen)
 
@@ -694,6 +827,7 @@ void main() {
 }
 """
 
+
 class Renderer3D:
     def __init__(self):
         # Verify OpenGL context is active
@@ -703,26 +837,28 @@ class Renderer3D:
             if test is None:
                 raise RuntimeError("OpenGL context not active")
         except Exception as e:
-            raise RuntimeError(f"OpenGL context error: {e}. Make sure OpenGL context is initialized before creating Renderer3D.")
-        
+            raise RuntimeError(
+                f"OpenGL context error: {e}. Make sure OpenGL context is initialized before creating Renderer3D."
+            )
+
         # Create VAO first (required for some platforms like macOS)
         self.VAO = glGenVertexArrays(1)
         glBindVertexArray(self.VAO)
-        
+
         # Now create plane geometry
         self.create_plane()
-        
+
         # Compile shaders
         self.shader = OpenGL.GL.shaders.compileProgram(
             OpenGL.GL.shaders.compileShader(VERTEX_SHADER, GL_VERTEX_SHADER),
             OpenGL.GL.shaders.compileShader(FRAGMENT_SHADER, GL_FRAGMENT_SHADER),
         )
         self.texture_ids = [0, 0, 0, 0]
-        self.cam = [0.0, 0.0, 1.3] 
+        self.cam = [0.0, 0.0, 1.3]
 
     def create_plane(self):
         verts, inds = [], []
-        scale = 0.5 
+        scale = 0.5
         for y in range(GRID_RES + 1):
             for x in range(GRID_RES + 1):
                 u, v = x / GRID_RES, y / GRID_RES
@@ -739,11 +875,11 @@ class Renderer3D:
         self.count = len(inds)
         v_data = np.array(verts, dtype=np.float32)
         i_data = np.array(inds, dtype=np.uint32)
-        
+
         # VAO is already created and bound in __init__
         # Just ensure it's still bound
         glBindVertexArray(self.VAO)
-        
+
         self.VBO = glGenBuffers(1)
         glBindBuffer(GL_ARRAY_BUFFER, self.VBO)
         glBufferData(GL_ARRAY_BUFFER, v_data.nbytes, v_data, GL_STATIC_DRAW)
@@ -763,26 +899,50 @@ class Renderer3D:
         for i, path in enumerate(paths):
             img = Image.open(path).convert("RGB")
             data = np.array(img, dtype=np.uint8)
-            if self.texture_ids[i] == 0: self.texture_ids[i] = glGenTextures(1)
+            if self.texture_ids[i] == 0:
+                self.texture_ids[i] = glGenTextures(1)
             glActiveTexture(GL_TEXTURE0 + i)
             glBindTexture(GL_TEXTURE_2D, self.texture_ids[i])
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, img.width, img.height, 0, GL_RGB, GL_UNSIGNED_BYTE, data)
+            glTexImage2D(
+                GL_TEXTURE_2D,
+                0,
+                GL_RGB,
+                img.width,
+                img.height,
+                0,
+                GL_RGB,
+                GL_UNSIGNED_BYTE,
+                data,
+            )
             glGenerateMipmap(GL_TEXTURE_2D)
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR)
+            glTexParameteri(
+                GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR
+            )
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
 
     def draw(self, aspect_ratio):
         glUseProgram(self.shader)
         dist = max(0.2, self.cam[2])
-        proj = self.perspective(45, aspect_ratio, 0.1, 100.0)
+        near = dist * 0.2
+        far = dist * 50000
+        proj = self.perspective(45, aspect_ratio, near, far)
         rx, ry = math.radians(self.cam[0]), math.radians(self.cam[1])
         cx = dist * math.sin(ry) * math.cos(rx)
         cy = dist * math.sin(rx)
         cz = dist * math.cos(ry) * math.cos(rx)
-        view = self.lookat(np.array([cx, cy, cz]), np.array([0, 0, 0]), np.array([0, 1, 0]))
-        glUniformMatrix4fv(glGetUniformLocation(self.shader, "projection"), 1, True, proj)
+        view = self.lookat(
+            np.array([cx, cy, cz]), np.array([0, 0, 0]), np.array([0, 1, 0])
+        )
+        glUniformMatrix4fv(
+            glGetUniformLocation(self.shader, "projection"), 1, True, proj
+        )
         glUniformMatrix4fv(glGetUniformLocation(self.shader, "view"), 1, True, view)
-        glUniformMatrix4fv(glGetUniformLocation(self.shader, "model"), 1, True, np.identity(4, dtype=np.float32))
+        glUniformMatrix4fv(
+            glGetUniformLocation(self.shader, "model"),
+            1,
+            True,
+            np.identity(4, dtype=np.float32),
+        )
         glUniform1f(glGetUniformLocation(self.shader, "displacementStrength"), 0.3)
         glUniform3f(glGetUniformLocation(self.shader, "lightPos"), 2.0, 4.0, 5.0)
         glUniform3f(glGetUniformLocation(self.shader, "viewPos"), cx, cy, cz)
@@ -796,7 +956,15 @@ class Renderer3D:
 
     def perspective(self, fov, aspect, near, far):
         f = 1.0 / math.tan(math.radians(fov) / 2)
-        return np.array([[f / aspect, 0, 0, 0], [0, f, 0, 0], [0, 0, (far + near) / (near - far), -1], [0, 0, (2 * far * near) / (near - far), 0]], dtype=np.float32)
+        return np.array(
+            [
+                [f / aspect, 0, 0, 0],
+                [0, f, 0, 0],
+                [0, 0, (far + near) / (near - far), -1],
+                [0, 0, (2 * far * near) / (near - far), 0],
+            ],
+            dtype=np.float32,
+        )
 
     def lookat(self, eye, target, up):
         f = target - eye
@@ -809,13 +977,16 @@ class Renderer3D:
         m[:3, 3] = -np.dot(m[:3, :3], eye)
         return m
 
+
 def draw_modal_overlay_3d(surface, w, h, title, lines):
     overlay = pygame.Surface((w, h), pygame.SRCALPHA)
     overlay.fill(THEME["modal_bg"])
     mw, mh = 500, 350
     mx, my = (w - mw) // 2, (h - mh) // 2
     pygame.draw.rect(overlay, (50, 50, 55), (mx, my, mw, mh), border_radius=12)
-    pygame.draw.rect(overlay, THEME["accent"], (mx, my, mw, mh), width=2, border_radius=12)
+    pygame.draw.rect(
+        overlay, THEME["accent"], (mx, my, mw, mh), width=2, border_radius=12
+    )
     font_bold = pygame.font.SysFont("Segoe UI", 24, bold=True)
     font = pygame.font.SysFont("Segoe UI", 18)
     t = font_bold.render(title, True, (255, 255, 255))
@@ -846,6 +1017,7 @@ generation_status = ""
 generated_files = []
 generation_complete = False
 
+
 def ai_loader_thread():
     global ai_pipeline, loading_done, loading_msg
     try:
@@ -856,26 +1028,35 @@ def ai_loader_thread():
         print(f"Error loading AI: {e}")
         loading_msg = "Error Loading AI!"
 
+
 def generation_worker(prompt, sketch_path, project_name):
     global generated_files, generation_complete
-    
+
     def cb(progress, status):
         global generation_progress, generation_status
         generation_progress = progress
         generation_status = status
-        
+
     try:
-        generated_files = ai_pipeline.generate(prompt, sketch_path, project_name, progress_callback=cb)
+        generated_files = ai_pipeline.generate(
+            prompt, sketch_path, project_name, progress_callback=cb
+        )
         generation_complete = True
     except Exception as e:
         print(f"Generation Error: {e}")
         # In a real app, handle error state
         generation_complete = True
 
+
 def main():
     global ai_pipeline, loading_done, loading_msg
-    global generation_thread, generation_progress, generation_status, generation_complete, generated_files
-    
+    global \
+        generation_thread, \
+        generation_progress, \
+        generation_status, \
+        generation_complete, \
+        generated_files
+
     pygame.init()
     # Use windowed mode instead of fullscreen
     # Window size: use 80% of screen size or default to 1920x1080
@@ -885,11 +1066,11 @@ def main():
     # Ensure minimum size
     W = max(W, 1280)
     H = max(H, 720)
-    
+
     # Start AI Thread
     t = threading.Thread(target=ai_loader_thread, daemon=True)
     t.start()
-    
+
     # 1. Loading Loop
     screen = pygame.display.set_mode((W, H))
     pygame.display.set_caption("Sketch-to-Material Studio - Loading...")
@@ -897,7 +1078,7 @@ def main():
     font_small = pygame.font.SysFont("Segoe UI", 20)
     clock = pygame.time.Clock()
     spinner_angle = 0
-    
+
     while not loading_done:
         clock.tick(60)
         for event in pygame.event.get():
@@ -907,63 +1088,78 @@ def main():
         screen.fill(THEME["bg"])
         spinner_rect = pygame.Rect(0, 0, 60, 60)
         spinner_rect.center = (W // 2, H // 2 - 50)
-        pygame.draw.arc(screen, THEME["accent"], spinner_rect, spinner_angle, spinner_angle + 1.5, 5)
+        pygame.draw.arc(
+            screen, THEME["accent"], spinner_rect, spinner_angle, spinner_angle + 1.5, 5
+        )
         spinner_angle += 0.1
         txt = font_large.render(loading_msg, True, (255, 255, 255))
         r = txt.get_rect(center=(W // 2, H // 2 + 20))
         screen.blit(txt, r)
-        hint = font_small.render("Initial setup may take a minute depending on GPU...", True, (150, 150, 150))
+        hint = font_small.render(
+            "Initial setup may take a minute depending on GPU...", True, (150, 150, 150)
+        )
         hr = hint.get_rect(center=(W // 2, H // 2 + 60))
         screen.blit(hint, hr)
         pygame.display.flip()
-        
+
     # 2. Main Application
     painter = PaintInterface((W, H))
     renderer = None
-    
+
     MODE = "PAINT"
     SHOW_3D_HELP = False
-    
+
     running = True
-    
+
     while running:
         clock.tick(60)
         events = pygame.event.get()
-        
+
         # --- GENERATING MODE ---
         if MODE == "GENERATING":
             # Consume events to prevent freezing, but don't process interaction
             for event in events:
-                if event.type == QUIT: running = False
-            
+                if event.type == QUIT:
+                    running = False
+
             # Check for completion
             if generation_complete:
                 MODE = "PRE_VIEW_INSTRUCTIONS"
                 generation_thread.join()
-            
+
             # Draw Loading Screen
             # Draw underlying interface dimmed
             painter.draw(screen)
             overlay = pygame.Surface((W, H), pygame.SRCALPHA)
             overlay.fill((0, 0, 0, 180))
             screen.blit(overlay, (0, 0))
-            
+
             # Progress Bar
             bar_w = 400
             bar_h = 20
             cx, cy = W // 2, H // 2
-            
+
             # Text
             txt = font_large.render(generation_status, True, (255, 255, 255))
             tr = txt.get_rect(center=(cx, cy - 40))
             screen.blit(txt, tr)
-            
+
             # Bar Back
-            pygame.draw.rect(screen, (50, 50, 50), (cx - bar_w//2, cy, bar_w, bar_h), border_radius=10)
+            pygame.draw.rect(
+                screen,
+                (50, 50, 50),
+                (cx - bar_w // 2, cy, bar_w, bar_h),
+                border_radius=10,
+            )
             # Bar Fill
             fill_w = int(bar_w * generation_progress)
-            pygame.draw.rect(screen, THEME["accent"], (cx - bar_w//2, cy, fill_w, bar_h), border_radius=10)
-            
+            pygame.draw.rect(
+                screen,
+                THEME["accent"],
+                (cx - bar_w // 2, cy, fill_w, bar_h),
+                border_radius=10,
+            )
+
             pygame.display.flip()
             continue
 
@@ -976,10 +1172,12 @@ def main():
                     pygame.display.init()
                     pygame.display.gl_set_attribute(pygame.GL_CONTEXT_MAJOR_VERSION, 3)
                     pygame.display.gl_set_attribute(pygame.GL_CONTEXT_MINOR_VERSION, 3)
-                    pygame.display.gl_set_attribute(pygame.GL_CONTEXT_PROFILE_MASK, pygame.GL_CONTEXT_PROFILE_CORE)
+                    pygame.display.gl_set_attribute(
+                        pygame.GL_CONTEXT_PROFILE_MASK, pygame.GL_CONTEXT_PROFILE_CORE
+                    )
                     screen = pygame.display.set_mode((W, H), DOUBLEBUF | OPENGL)
                     pygame.display.set_caption("Sketch-to-Material Studio - 3D View")
-                    
+
                     # Ensure OpenGL context is active before creating renderer
                     # Initialize OpenGL state to ensure context is ready
                     try:
@@ -990,7 +1188,7 @@ def main():
                         pygame.display.flip()
                     except Exception as e:
                         print(f"Warning: OpenGL initialization issue: {e}")
-                    
+
                     # Now create renderer with active context
                     try:
                         renderer = Renderer3D()
@@ -1005,19 +1203,23 @@ def main():
                         screen = pygame.display.set_mode((W, H))
                         pygame.display.set_caption("Sketch-to-Material Studio")
                         painter = PaintInterface((W, H))
-            
-            painter.draw(screen) 
-            painter.draw_modal(screen, "Ready to View", [
-                "1. Navigation Controls:",
-                "   W / S : Rotate Up / Down",
-                "   A / D : Rotate Left / Right",
-                "   R / E : Zoom In / Out",
-                "",
-                "2. Press 'H' to see these controls again.",
-                "3. Press 'ESC' to return to drawing.",
-                "",
-                ">> Click anywhere to Start 3D View <<"
-            ])
+
+            painter.draw(screen)
+            painter.draw_modal(
+                screen,
+                "Ready to View",
+                [
+                    "1. Navigation Controls:",
+                    "   W / S : Rotate Up / Down",
+                    "   A / D : Rotate Left / Right",
+                    "   R / E : Zoom In / Out",
+                    "",
+                    "2. Press 'H' to see these controls again.",
+                    "3. Press 'ESC' to return to drawing.",
+                    "",
+                    ">> Click anywhere to Start 3D View <<",
+                ],
+            )
             pygame.display.flip()
             continue
 
@@ -1028,7 +1230,7 @@ def main():
 
             if MODE == "PAINT":
                 action = painter.handle_event(event)
-                
+
                 if isinstance(action, tuple) and action[0] == "LOAD_PROJECT":
                     p_name = action[1]
                     p_path = os.path.join("projects", p_name)
@@ -1038,7 +1240,7 @@ def main():
                             os.path.join(p_path, "albedo.png"),
                             os.path.join(p_path, "depth.png"),
                             os.path.join(p_path, "normal.png"),
-                            os.path.join(p_path, "roughness.png")
+                            os.path.join(p_path, "roughness.png"),
                         )
                         MODE = "PRE_VIEW_INSTRUCTIONS"
 
@@ -1050,11 +1252,11 @@ def main():
                     generation_progress = 0.0
                     generation_status = "Starting..."
                     generation_complete = False
-                    
+
                     generation_thread = threading.Thread(
                         target=generation_worker,
                         args=(painter.prompt, s_path, painter.project_name),
-                        daemon=True
+                        daemon=True,
                     )
                     generation_thread.start()
                     MODE = "GENERATING"
@@ -1078,12 +1280,18 @@ def main():
 
         elif MODE == "VIEW" and renderer:
             keys = pygame.key.get_pressed()
-            if keys[K_w]: renderer.cam[0] = max(-89, renderer.cam[0] - 2)
-            if keys[K_s]: renderer.cam[0] = min(89, renderer.cam[0] + 2)
-            if keys[K_a]: renderer.cam[1] -= 2
-            if keys[K_d]: renderer.cam[1] += 2
-            if keys[K_r]: renderer.cam[2] = max(0.1, renderer.cam[2] - 0.05)
-            if keys[K_e]: renderer.cam[2] += 0.05
+            if keys[K_w]:
+                renderer.cam[0] = max(-89, renderer.cam[0] - 2)
+            if keys[K_s]:
+                renderer.cam[0] = min(89, renderer.cam[0] + 2)
+            if keys[K_a]:
+                renderer.cam[1] -= 2
+            if keys[K_d]:
+                renderer.cam[1] += 2
+            if keys[K_r]:
+                renderer.cam[2] = max(0.1, renderer.cam[2] - 0.05)
+            if keys[K_e]:
+                renderer.cam[2] += 0.05
 
             glClearColor(0.1, 0.1, 0.1, 1.0)
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
@@ -1094,12 +1302,18 @@ def main():
             try:
                 overlay_surf = pygame.display.get_surface()
                 if SHOW_3D_HELP and overlay_surf:
-                    draw_modal_overlay_3d(overlay_surf, W, H, "3D Controls", [
-                        "W / S : Rotate Up / Down",
-                        "A / D : Rotate Left / Right",
-                        "R / E : Zoom In / Out",
-                        "ESC : Return to Paint"
-                    ])
+                    draw_modal_overlay_3d(
+                        overlay_surf,
+                        W,
+                        H,
+                        "3D Controls",
+                        [
+                            "W / S : Rotate Up / Down",
+                            "A / D : Rotate Left / Right",
+                            "R / E : Zoom In / Out",
+                            "ESC : Return to Paint",
+                        ],
+                    )
             except:
                 pass
 
@@ -1107,6 +1321,7 @@ def main():
 
     pygame.quit()
     sys.exit()
+
 
 if __name__ == "__main__":
     main()
