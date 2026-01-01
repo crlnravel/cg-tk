@@ -139,40 +139,43 @@ Normal maps can be derived from depth maps through gradient computation, as demo
 % ==========================================
 \section{System Design}
 
-\textbf{Architecture Overview.} Our system follows a three-stage pipeline: (1) \textit{Sketch Input}, where users create or upload 2D sketches, (2) \textit{AI Generation}, which produces material maps from sketches, and (3) \textit{Classical Rendering}, which visualizes the materials in 3D. 
+\textbf{Architecture Overview.} Our system follows a three-stage pipeline: (1) \textit{Sketch Input}, where users create or upload 2D sketches, (2) \textit{AI Generation}, which produces material maps from sketches, and (3) \textit{Classical Rendering}, which visualizes the materials in 3D. The complete system pipeline is illustrated in Figure~\ref{fig:pipeline}.
 
-\begin{figure}[h]
+\begin{figure*}[t]
 \centering
-\includegraphics[width=\columnwidth]{figures/pipeline.png}
+\includegraphics[width=\textwidth]{figures/pipeline.png}
 \caption{System pipeline from sketch to 3D rendering.}
 \label{fig:pipeline}
-\end{figure}
+\end{figure*}
 
-\textbf{Sketch Input Module.} The sketch input module provides an interactive 2D canvas implemented using PyGame. Users can draw directly with mouse input, select colors from a palette, or drag-and-drop existing images. The canvas supports real-time drawing with configurable brush sizes and color selection. Sketches are saved as 512x512 pixel images for processing by the AI pipeline.
+\subsection{Sketch Input}
+The sketch input module provides an interactive 2D canvas implemented using PyGame. Users can draw directly with mouse input, select colors from a palette, or drag-and-drop existing images. The canvas supports real-time drawing with configurable brush sizes and color selection. Sketches are saved as 512x512 pixel images for processing by the AI pipeline.
 
-\textbf{AI Generation Pipeline.} The AI generation stage consists of three components:
+\subsection{AI Generation Pipeline}
+The AI generation stage consists of three primary components that transform the 2D sketch into a comprehensive set of material maps:
 
-\textbf{Texture Synthesis}
+\textbf{Texture Synthesis.}
 We employ Stable Diffusion v1.5 with ControlNet (scribble variant) to generate detailed textures from user sketches. The ControlNet architecture provides precise structural control by conditioning the diffusion process on the input sketch. Sketches are preprocessed through binary thresholding and inversion to create clean edge maps that serve as ControlNet conditioning. The model uses UniPCMultistepScheduler for efficient inference with 30 steps. ControlNet conditioning scale is set to 0.7 to balance between preserving sketch structure and allowing creative freedom. Positive prompts emphasize "seamless texture, top down view, flat lighting, 8k, highly detailed, photorealistic material" while negative prompts exclude "perspective, 3d, shadows, people, objects, text, watermark, blurry, low quality, distortion". Guidance scale is set to 8.0 for strong prompt adherence.
 
-\textbf{Depth Estimation}
+\textbf{Depth Estimation.}
 We use the Depth-Anything-Small model \cite{yang2024depth} to estimate depth from the generated texture. This provides a depth map that encodes geometric information for displacement mapping.
 
-\textbf{Normal Map Generation}
+\textbf{Normal Map Generation.}
 Normal maps are computed from depth maps using Sobel operators (kernel size 5) to compute gradients. The gradients are normalized and encoded in RGB format, providing surface normal perturbations for enhanced lighting detail.
 
-\textbf{Roughness Map Generation}
+\textbf{Roughness Map Generation.}
 Roughness maps are automatically derived from the generated albedo texture by converting to grayscale, normalizing, and inverting the values. This approach assumes that darker regions in the albedo correspond to rougher surfaces, providing a physically plausible roughness distribution without requiring additional AI processing.
 
-\textbf{Classical Rendering Pipeline.} The rendering module implements a classical OpenGL 3.3 rasterization pipeline:
+\subsection{Classical Rendering}
+The rendering module implements a classical OpenGL 3.3 rasterization pipeline to visualize the generated maps in real-time:
 
-\textbf{Geometry}
+\textbf{Geometry.}
 A 200x200 grid mesh serves as the base geometry, providing high-resolution surface detail for displacement mapping. Vertices include position, texture coordinates, and normals, stored in a Vertex Array Object (VAO) for efficient GPU access.
 
-\textbf{Vertex Shader}
+\textbf{Vertex Shader.}
 Performs displacement mapping by sampling the depth texture and displacing vertices along their normals. The displacement strength is configurable (default 0.3) to control surface relief.
 
-\textbf{Fragment Shader}
+\textbf{Fragment Shader.}
 Implements Phong lighting with three components:
 \begin{itemize}
     \item \textit{Ambient}: Constant 0.2 contribution for base illumination
@@ -182,7 +185,7 @@ Implements Phong lighting with three components:
 
 The shader samples four textures: albedo for base color, depth for displacement, normal for surface detail, and roughness for specular control. Normal maps are blended with geometric normals to enhance surface detail. Roughness values modulate the specular highlight intensity, creating more realistic material appearance.
 
-\textbf{Camera System}
+\textbf{Camera System.}
 An orbital camera allows interactive viewing with mouse drag controls. The camera uses spherical coordinates converted to Cartesian for LookAt matrix computation.
 
 % ==========================================
@@ -190,64 +193,65 @@ An orbital camera allows interactive viewing with mouse drag controls. The camer
 % ==========================================
 \section{Implementation}
 
-\textbf{Classical Graphics Components.}
+\subsection{Classical Graphics Components}
 
-\textbf{Rasterization Pipeline}
+\textbf{Rasterization Pipeline.}
 We implement a complete OpenGL rasterization pipeline using PyOpenGL. The pipeline includes:
 \begin{itemize}
-    \item Vertex Buffer Objects (VBO) for vertex data storage
-    \item Element Buffer Objects (EBO) for indexed rendering
-    \item Vertex Array Objects (VAO) for state management
-    \item Custom GLSL shaders for vertex and fragment processing
+    \item Vertex Buffer Objects (VBO) for vertex data storage.
+    \item Element Buffer Objects (EBO) for indexed rendering.
+    \item Vertex Array Objects (VAO) for state management.
+    \item Custom GLSL shaders for vertex and fragment processing.
 \end{itemize}
 
-\textbf{Lighting Model}
+\textbf{Lighting Model.}
 The Phong lighting model is implemented in the fragment shader with the following equation:
 \begin{equation}
 I = I_a + I_d \cdot \max(\mathbf{N} \cdot \mathbf{L}, 0) + I_s \cdot (\mathbf{N} \cdot \mathbf{H})^n
 \end{equation}
 where $I_a$, $I_d$, and $I_s$ are ambient, diffuse, and specular intensities, $\mathbf{N}$ is the surface normal, $\mathbf{L}$ is the light direction, $\mathbf{H}$ is the half-vector, and $n$ is the shininess exponent.
 
-\textbf{Texture Mapping}
+\textbf{Texture Mapping.}
 Multi-texture binding enables simultaneous use of albedo, depth, normal, and roughness maps. Textures are loaded using PIL/Pillow and uploaded to GPU memory with mipmap generation for quality filtering. The system organizes generated materials into project folders for easy management and reuse.
 
-\textbf{Displacement Mapping}
+\textbf{Displacement Mapping.}
 Vertex displacement is performed in the vertex shader by sampling the depth texture and scaling the displacement by a configurable strength parameter. This creates geometric detail without modifying the base mesh topology.
 
-\textbf{AI-Based Components.}
+\subsection{AI-Based Components}
 
-\textbf{Stable Diffusion ControlNet Integration}
+\textbf{Stable Diffusion ControlNet Integration.}
 We use the Hugging Face Diffusers library to load and run Stable Diffusion v1.5 with ControlNet (scribble variant). The model supports both CUDA (NVIDIA GPUs), MPS (Apple Silicon), and CPU execution, with automatic device selection. The ControlNet pipeline accepts:
 \begin{itemize}
-    \item Input sketch preprocessed through binary thresholding and inversion
-    \item Text prompt for generation guidance
-    \item ControlNet conditioning scale (0.7) controlling sketch structure preservation
-    \item Guidance scale (8.0) for prompt adherence
-    \item UniPCMultistepScheduler for efficient 30-step inference
+    \item Input sketch preprocessed through binary thresholding and inversion.
+    \item Text prompt for generation guidance.
+    \item ControlNet conditioning scale (0.7) controlling sketch structure preservation.
+    \item Guidance scale (8.0) for prompt adherence.
+    \item UniPCMultistepScheduler for efficient 30-step inference.
 \end{itemize}
 The AI pipeline is loaded in a separate thread to prevent blocking the user interface during initialization, which can take several minutes on first run.
 
-\textbf{Depth Estimation}
+\textbf{Depth Estimation.}
 The Depth-Anything-Small model is loaded via Hugging Face Transformers pipeline API. The model processes the generated texture and outputs a depth map, which is resized to match the texture resolution (512x512).
 
-\textbf{Normal Map Computation}
+\textbf{Normal Map Computation.}
 Normal maps are computed using OpenCV's Sobel operators with kernel size 5:
 \begin{equation}
 \mathbf{N} = \text{normalize}([-S_x, -S_y, k])
 \end{equation}
 where $S_x$ and $S_y$ are Sobel gradients, and $k$ is a constant (500.0) representing the base normal component. The result is normalized and encoded to [0, 255] range for texture storage.
 
-\textbf{Roughness Map Computation}
+\textbf{Roughness Map Computation.}
 Roughness maps are derived from albedo textures through grayscale conversion and inversion:
 \begin{equation}
 R = 255 - \text{normalize}(\text{grayscale}(A))
 \end{equation}
 where $A$ is the albedo texture. This assumes darker albedo regions correspond to rougher surfaces, providing a physically plausible approximation.
 
-\textbf{System Integration.} The system integrates AI and classical components through a two-mode interface:
+\subsection{System Integration}
+The system integrates AI and classical components through a two-mode interface:
 \begin{itemize}
-    \item \textit{Paint Mode}: 2D sketch creation using PyGame
-    \item \textit{View Mode}: 3D visualization using OpenGL
+    \item \textit{Paint Mode}: 2D sketch creation using PyGame.
+    \item \textit{View Mode}: 3D visualization using OpenGL.
 \end{itemize}
 
 Mode switching occurs automatically after AI generation completes. The system handles blocking AI operations gracefully through threaded loading and progress callbacks. A project management system saves all generated materials (albedo, depth, normal, roughness) in organized project folders, enabling users to reload previous work. The interface includes template loading, project browsing, and real-time progress feedback during generation.
@@ -257,32 +261,40 @@ Mode switching occurs automatically after AI generation completes. The system ha
 % ==========================================
 \section{Evaluation}
 
-\textbf{Visual Quality Assessment.} We evaluate the visual quality of generated materials through qualitative analysis. Figure~\ref{fig:results} shows example results from various sketch inputs. The system successfully generates detailed textures that preserve the overall structure of input sketches while adding realistic surface details.
+\subsection{Visual Quality Assessment}
+We evaluate the visual quality of generated materials through qualitative analysis. Figure~\ref{fig:results} illustrates the generation pipeline results. The system successfully translates a binary sketch into a rich albedo texture using Stable Diffusion, which is then processed into PBR maps to produce a realistic 3D render with depth displacement and lighting.
 
 \begin{figure}[h]
 \centering
+% 1. Input Sketch
 \begin{subfigure}{0.32\columnwidth}
 \centering
-\includegraphics[width=\textwidth]{figures/example1_sketch.png}
+\includegraphics[width=\textwidth]{figures/sketch_input.png} % Pastikan nama file sesuai
 \caption{Input Sketch}
 \end{subfigure}
+\hfill
+% 2. Albedo Map (Hasil Diffusion)
 \begin{subfigure}{0.32\columnwidth}
 \centering
-\includegraphics[width=\textwidth]{figures/example1_result.png}
-\caption{3D Rendering}
+\includegraphics[width=\textwidth]{figures/albedo.png} % Pastikan nama file sesuai
+\caption{Generated Albedo}
 \end{subfigure}
+\hfill
+% 3. Final 3D Render
 \begin{subfigure}{0.32\columnwidth}
 \centering
-\includegraphics[width=\textwidth]{figures/example1_maps.png}
-\caption{Material Maps}
+\includegraphics[width=\textwidth]{figures/final_render.png} % Ganti dengan nama file screenshot 3D kamu
+\caption{Final 3D Render}
 \end{subfigure}
-\caption{Example results showing input sketch, 3D rendering, and generated material maps.}
+
+\caption{Visual generation process: (a) User input sketch, (b) Albedo texture generated by Stable Diffusion ControlNet, and (c) Final interactive 3D rendering demonstrating displacement and Phong lighting.}
 \label{fig:results}
 \end{figure}
 
-The Phong lighting model provides realistic illumination, with specular highlights enhanced by roughness map modulation. Displacement mapping creates visible geometric relief, while normal mapping adds fine-scale surface variation. The inclusion of roughness maps enables more physically accurate material appearance, with rougher surfaces exhibiting broader, dimmer specular highlights. The combination produces materials that appear three-dimensional and realistic.
+The Phong lighting model provides realistic illumination, with specular highlights enhanced by roughness map modulation. Displacement mapping creates visible geometric relief based on the depth extracted from the albedo, while normal mapping adds fine-scale surface variation. The combination produces materials that appear three-dimensional and realistic based on the initial 2D input.
 
-\textbf{Performance Metrics.} Performance measurements were conducted on multiple hardware configurations:
+\subsection{Performance Metrics}
+Performance measurements were conducted on multiple hardware configurations:
 
 \begin{table}[h]
 \centering
@@ -301,47 +313,40 @@ Intel i7-10700K (CPU) & 420s & 45s \\
 
 Rendering performance achieves 60 FPS on all tested configurations, as the classical rendering pipeline is GPU-accelerated and computationally efficient. The AI generation stage is the primary bottleneck, but remains acceptable for interactive use on GPU-enabled systems.
 
-\textbf{Integration Effectiveness.} The integration between AI and classical components demonstrates several advantages:
-\begin{itemize}
-    \item \textit{Quality}: AI-generated textures provide rich detail that would be difficult to create manually
-    \item \textit{Speed}: Classical rendering enables real-time visualization of generated materials
-    \item \textit{Flexibility}: The modular design allows easy substitution of AI models or rendering techniques
-\end{itemize}
-
-The system successfully bridges the gap between AI content generation and classical visualization, providing a complete workflow from sketch to 3D material.
-
 % ==========================================
 % 6. DISCUSSION
 % ==========================================
 \section{Discussion}
 
-\textbf{Findings.} Our implementation demonstrates that modern AI models can be effectively integrated with classical rendering pipelines. The combination of ControlNet-based Stable Diffusion for texture generation and learned depth estimation provides a complete PBR material creation workflow. The classical rendering pipeline ensures real-time performance and realistic lighting, while AI components handle the complex task of content generation.
+\subsection{Findings}
+Our implementation demonstrates that modern AI models can be effectively integrated with classical rendering pipelines. The combination of ControlNet-based Stable Diffusion for texture generation and learned depth estimation provides a complete PBR material creation workflow. The classical rendering pipeline ensures real-time performance and realistic lighting, while AI components handle the complex task of content generation.
 
-Key observations:
+Key observations include:
 \begin{itemize}
-    \item ControlNet effectively preserves sketch structure while adding realistic detail, providing better structural control than standard Img2Img approaches
-    \item Depth estimation provides sufficient geometric information for convincing displacement mapping
-    \item Normal maps derived from depth enhance surface detail without additional computation
-    \item Roughness maps derived from albedo provide physically plausible material properties without requiring additional AI processing
-    \item The Phong lighting model, enhanced with roughness modulation, produces visually appealing results when combined with high-quality textures
-    \item Threaded AI loading prevents UI blocking during model initialization, improving user experience
+    \item ControlNet effectively preserves sketch structure while adding realistic detail, providing better structural control than standard Img2Img approaches.
+    \item Depth estimation provides sufficient geometric information for convincing displacement mapping.
+    \item Normal maps derived from depth enhance surface detail without additional computation.
+    \item Roughness maps derived from albedo provide physically plausible material properties without requiring additional AI processing.
+    \item The Phong lighting model, enhanced with roughness modulation, produces visually appealing results when combined with high-quality textures.
+    \item Threaded AI loading prevents UI blocking during model initialization, improving user experience.
 \end{itemize}
 
-\textbf{Limitations.} Several limitations are present in the current implementation:
+\subsection{Limitations}
+Several limitations are present in the current implementation:
 
-\textbf{Generation Time}
+\textbf{Generation Time.}
 AI generation requires 30-60 seconds on GPU hardware, which may interrupt workflow for rapid iteration. CPU execution is significantly slower (5-10 minutes), limiting accessibility.
 
-\textbf{Resolution Constraints}
+\textbf{Resolution Constraints.}
 Textures are generated at 512x512 resolution due to model constraints. Higher resolutions would improve quality but require more computational resources.
 
-\textbf{Blocking Operations}
-The current implementation blocks the UI during AI generation. Asynchronous processing would improve user experience.
+\textbf{Blocking Operations.}
+While initialization is threaded, the current implementation blocks the UI during the specific generation phase. Asynchronous processing would improve user experience.
 
-\textbf{Limited Control}
+\textbf{Limited Control.}
 Users have limited control over generation parameters. More granular control over texture style, detail level, and geometric properties would enhance usability.
 
-\textbf{Lighting Constraints}
+\textbf{Lighting Constraints.}
 The system uses a fixed lighting setup. Dynamic lighting or multiple light sources would provide more realistic visualization.
 
 % ==========================================
