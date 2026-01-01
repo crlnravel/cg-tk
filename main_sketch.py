@@ -789,9 +789,12 @@ class PaintInterface:
         if self.show_load_modal:
             self.draw_load_modal(screen)
 
-    def save_sketch(self):
-        pygame.image.save(self.canvas_surf, "sketch_input.png")
-        return "sketch_input.png"
+    def save_sketch(self, project_path):
+        """Save sketch to project folder"""
+        os.makedirs(project_path, exist_ok=True)
+        sketch_path = os.path.join(project_path, "sketch_input.png")
+        pygame.image.save(self.canvas_surf, sketch_path)
+        return sketch_path
 
 
 # ==========================================
@@ -1320,7 +1323,8 @@ def main():
                     running = False
                 elif action == "GENERATE":
                     # Start Generation Thread
-                    s_path = painter.save_sketch()
+                    project_path = os.path.join("projects", painter.project_name)
+                    s_path = painter.save_sketch(project_path)
                     generation_progress = 0.0
                     generation_status = "Starting..."
                     generation_complete = False
