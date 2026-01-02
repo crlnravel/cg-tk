@@ -20,3 +20,7 @@ report.loe
 *.txt
 
 __pycache__/
+
+# Benchmark results
+test/*_results/
+test/**/run_*/

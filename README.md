@@ -103,6 +103,24 @@ The application generates several texture maps for realistic 3D rendering:
 |--------|-------|--------|-----------|
 | ![Albedo](assets/albedo.png) | ![Depth](assets/depth.png) | ![Normal](assets/normal.png) | ![Roughness](assets/roughness.png) |
 
+## Benchmarking
+
+For performance testing across different devices, use the benchmark script. It runs the generation pipeline without GUI using a template sketch and prompt.
+
+### Running Benchmark
+
+Simply run:
+```bash
+python benchmark.py
+```
+
+The script will:
+- Use template sketch from `test/input_sketches/sample_sketch.png`
+- Use template prompt: "detailed material texture, seamless, high quality"
+- Generate all texture maps (albedo, depth, normal, roughness)
+- Display detailed timing breakdown for each stage
+- Save results to `test/benchmark_results/`
+
 ## Authors
 
 - **Carleano Ravelza Wongso** - carleano.ravelza@ui.ac.id
