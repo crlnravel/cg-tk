@@ -178,14 +178,15 @@ A 200x200 grid mesh serves as the base geometry, providing high-resolution surfa
 Performs displacement mapping by sampling the depth texture and displacing vertices along their normals. The displacement strength is configurable (default 0.3) to control surface relief.
 
 \textbf{Fragment Shader.}
-Implements Phong lighting with three components:
+Implements an enhanced Phong lighting model with four key components:
 \begin{itemize}
-    \item \textit{Ambient}: Constant 0.2 contribution for base illumination
-    \item \textit{Diffuse}: Lambertian reflection based on surface normal and light direction
-    \item \textit{Specular}: Blinn-Phong specular highlights with shininess exponent 32
+    \item \textit{Ambient}: Constant 0.05 contribution to prevent total darkness in shadowed areas.
+    \item \textit{Diffuse}: Lambertian reflection based on surface normal and light direction.
+    \item \textit{Specular}: Blinn-Phong highlights with dynamic shininess controlled by the roughness map.
+    \item \textit{Rim Light}: Fresnel-like effect to accentuate object silhouettes and enhance 3D readability.
 \end{itemize}
 
-The shader samples four textures: albedo for base color, depth for displacement, normal for surface detail, and roughness for specular control. Normal maps are blended with geometric normals to enhance surface detail. Roughness values modulate the specular highlight intensity, creating more realistic material appearance.
+The shader samples four textures: albedo for base color, depth for displacement, normal for surface detail, and roughness for specular control. Normal maps are blended with geometric normals to enhance surface detail. Roughness values modulate the specular highlight intensity and sharpness, creating more realistic material appearance.
 
 \textbf{Camera System.}
 An orbital camera allows interactive viewing with mouse drag controls. The camera uses spherical coordinates converted to Cartesian for LookAt matrix computation.
@@ -193,31 +194,30 @@ An orbital camera allows interactive viewing with mouse drag controls. The camer
 % ==========================================
 % 4. IMPLEMENTATION
 % ==========================================
-\section{Implementation}
-
-\subsection{Classical Graphics Components}
-
-\textbf{Rasterization Pipeline.}
-We implement a complete OpenGL rasterization pipeline using PyOpenGL. The pipeline includes:
-\begin{itemize}
-    \item Vertex Buffer Objects (VBO) for vertex data storage.
-    \item Element Buffer Objects (EBO) for indexed rendering.
-    \item Vertex Array Objects (VAO) for state management.
-    \item Custom GLSL shaders for vertex and fragment processing.
-\end{itemize}
+% ... (Bagian Rasterization Pipeline tetap sama) ...
 
 \textbf{Lighting Model.}
-The Phong lighting model is implemented in the fragment shader with the following equation:
+The lighting calculation is implemented in the fragment shader using an extended Blinn-Phong model that includes a Fresnel-based rim term. The final pixel intensity $I$ is calculated as:
+
 \begin{equation}
-I = I_a + I_d \cdot \max(\mathbf{N} \cdot \mathbf{L}, 0) + I_s \cdot (\mathbf{N} \cdot \mathbf{H})^n
+I = I_a + I_d + I_s + I_r
 \end{equation}
-where $I_a$, $I_d$, and $I_s$ are ambient, diffuse, and specular intensities, $\mathbf{N}$ is the surface normal, $\mathbf{L}$ is the light direction, $\mathbf{H}$ is the half-vector, and $n$ is the shininess exponent.
 
-\textbf{Texture Mapping.}
-Multi-texture binding enables simultaneous use of albedo, depth, normal, and roughness maps. Textures are loaded using PIL/Pillow and uploaded to GPU memory with mipmap generation for quality filtering. The system organizes generated materials into project folders for easy management and reuse.
+Where the components are defined as:
+\begin{align*}
+I_a &= 0.05 \cdot \mathbf{A} \\
+I_d &= \max(\mathbf{N} \cdot \mathbf{L}, 0) \cdot \mathbf{A} \\
+I_s &= 0.3 \cdot (1 - \text{rough}) \cdot (\mathbf{N} \cdot \mathbf{H})^{\alpha} \\
+I_r &= 0.3 \cdot (1 - \max(\mathbf{V} \cdot \mathbf{N}, 0))^3
+\end{align*}
 
-\textbf{Displacement Mapping.}
-Vertex displacement is performed in the vertex shader by sampling the depth texture and scaling the displacement by a configurable strength parameter. This creates geometric detail without modifying the base mesh topology.
+Here, $\mathbf{A}$ is the albedo color, $\mathbf{N}$ is the perturbed surface normal, $\mathbf{L}$ is the light direction, $\mathbf{H}$ is the half-vector, and $\mathbf{V}$ is the view direction. 
+
+Unlike standard Phong shading with a fixed exponent, our implementation uses a **dynamic shininess exponent** $\alpha$ derived from the roughness map:
+\begin{equation}
+\alpha = \text{mix}(2.0, 64.0, 1.0 - \text{rough})
+\end{equation}
+This ensures that smoother surfaces (low roughness) exhibit sharper highlights (higher $\alpha$), while rougher surfaces produce broader, dimmer highlights, accurately simulating physical material properties.
 
 \subsection{AI-Based Components}
 
