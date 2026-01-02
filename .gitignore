@@ -24,3 +24,5 @@ __pycache__/
 # Benchmark results
 test/*_results/
 test/**/run_*/
+
+!presentation.txt
