@@ -6,6 +6,8 @@ Runs generation pipeline without GUI using template sketch and prompt
 import os
 import sys
 import time
+import platform
+import torch
 from src.pipeline import AIPipeline
 from src.config import DEVICE
 from src.timer import Timer
@@ -15,6 +17,28 @@ from src.timer import Timer
 TEMPLATE_SKETCH = "test/input_sketches/sample_sketch.png"
 TEMPLATE_PROMPT = "detailed material texture, seamless, high quality"
 OUTPUT_DIR = "test/benchmark_results"
+
+
+def get_device_info():
+    """Gather device and system information"""
+    info = {
+        "platform": platform.platform(),
+        "processor": platform.processor(),
+        "python_version": platform.python_version(),
+        "pytorch_version": torch.__version__,
+        "device": DEVICE,
+    }
+    
+    if DEVICE == "cuda":
+        info["cuda_version"] = torch.version.cuda
+        info["gpu_name"] = torch.cuda.get_device_name(0)
+        info["gpu_memory"] = f"{torch.cuda.get_device_properties(0).total_memory / 1e9:.2f} GB"
+    elif DEVICE == "mps":
+        info["gpu_name"] = "Apple Silicon (MPS)"
+    else:
+        info["gpu_name"] = "CPU"
+    
+    return info
 
 
 def main():
@@ -92,6 +116,22 @@ def main():
         print("-" * 70)
         print(f"TOTAL TIME:              {overall_time:8.2f}s")
         print("=" * 70)
+        
+        # Display device information
+        device_info = get_device_info()
+        print("\nDEVICE INFORMATION")
+        print("=" * 70)
+        print(f"Platform:                 {device_info['platform']}")
+        print(f"Processor:               {device_info['processor']}")
+        print(f"Python Version:          {device_info['python_version']}")
+        print(f"PyTorch Version:          {device_info['pytorch_version']}")
+        print(f"Device Type:              {device_info['device'].upper()}")
+        print(f"GPU/Accelerator:          {device_info['gpu_name']}")
+        if DEVICE == "cuda":
+            print(f"CUDA Version:             {device_info.get('cuda_version', 'N/A')}")
+            print(f"GPU Memory:                {device_info.get('gpu_memory', 'N/A')}")
+        print("=" * 70)
+        
         print(f"\nResults saved to: {OUTPUT_DIR}/")
         print("  - albedo.png")
         print("  - depth.png")
