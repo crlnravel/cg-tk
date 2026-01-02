@@ -194,11 +194,11 @@ def main():
                     "   W / S : Rotate Up / Down",
                     "   A / D : Rotate Left / Right",
                     "   R / E : Zoom In / Out",
+                    "   Mouse Wheel : Zoom In / Out",
                     "",
-                    "2. Press 'H' to see these controls again.",
+                    "2. Press 'H' or click ? button to see",
+                    "   controls again.",
                     "3. Press 'ESC' to return to drawing.",
-                    "",
-                    ">> Click anywhere to Start 3D View <<",
                 ],
             )
             pygame.display.flip()
@@ -252,6 +252,16 @@ def main():
                         painter = PaintInterface((W, H))
                     elif event.key == K_h:
                         SHOW_3D_HELP = not SHOW_3D_HELP
+                elif event.type == MOUSEWHEEL and renderer:
+                    zoom_speed = 0.1
+                    if event.y > 0:
+                        renderer.cam[2] = max(0.1, renderer.cam[2] - zoom_speed)
+                    elif event.y < 0:
+                        renderer.cam[2] += zoom_speed
+                elif event.type == MOUSEBUTTONDOWN and renderer:
+                    info_btn_rect = pygame.Rect(10, 10, 32, 32)
+                    if info_btn_rect.collidepoint(event.pos):
+                        SHOW_3D_HELP = not SHOW_3D_HELP
 
         if MODE == "PAINT":
             painter.draw(screen)
@@ -280,7 +290,10 @@ def main():
 
             try:
                 overlay_surf = pygame.display.get_surface()
-                draw_3d_controls_overlay(overlay_surf, W, H)
+                mouse_pos = pygame.mouse.get_pos()
+                info_btn_rect = pygame.Rect(10, 10, 32, 32)
+                info_btn_hover = info_btn_rect.collidepoint(mouse_pos)
+                draw_3d_controls_overlay(overlay_surf, W, H, info_btn_hover)
                 if SHOW_3D_HELP and overlay_surf:
                     draw_modal_overlay_3d(
                         overlay_surf,
@@ -291,6 +304,8 @@ def main():
                             "W / S : Rotate Up / Down",
                             "A / D : Rotate Left / Right",
                             "R / E : Zoom In / Out",
+                            "Mouse Wheel : Zoom In / Out",
+                            "H : Toggle Help",
                             "ESC : Return to Paint",
                         ],
                     )

@@ -111,7 +111,7 @@ class PaintInterface:
         total_h = btn_y + 220
         self.max_scroll = max(0, total_h - self.screen_h)
 
-        self.project_list_buttons = []
+        self.project_list_info = {'projects': [], 'cols': 3, 'w': 180, 'h': 40, 'gap': 10}
 
     def clear_canvas(self):
         self.canvas_surf.fill((0, 0, 0))
@@ -134,19 +134,13 @@ class PaintInterface:
                 if os.path.isdir(os.path.join("projects", d))
             ]
         )
-        self.project_list_buttons = []
-        cols = 3
-        w = 180
-        h = 40
-        gap = 10
-        start_x = (self.screen_w - (cols * w + (cols - 1) * gap)) // 2
-        start_y = 150
-        for i, proj in enumerate(projects):
-            r = i // cols
-            c = i % cols
-            rect = (start_x + c * (w + gap), start_y + r * (h + gap), w, h)
-            cb = lambda p=proj: ("LOAD_PROJECT", p)
-            self.project_list_buttons.append(Button(rect, proj[:20], cb, text_size=14))
+        self.project_list_info = {
+            'projects': projects,
+            'cols': 3,
+            'w': 180,
+            'h': 40,
+            'gap': 10
+        }
 
     def load_template(self, folder_name):
         path = os.path.join("templates", folder_name)
@@ -180,14 +174,56 @@ class PaintInterface:
 
         if self.show_load_modal:
             if event.type == MOUSEBUTTONDOWN:
-                for btn in self.project_list_buttons:
-                    res = btn.check_click(event.pos)
-                    if res:
-                        return res
-                self.show_load_modal = False
-            if event.type == MOUSEMOTION:
-                for btn in self.project_list_buttons:
-                    btn.check_hover(event.pos)
+                if hasattr(self, 'project_list_info') and self.project_list_info['projects']:
+                    mw, mh = 700, 500
+                    mx, my = (self.screen_w - mw) // 2, (self.screen_h - mh) // 2
+                    info = self.project_list_info
+                    cols = info['cols']
+                    w = info['w']
+                    h = info['h']
+                    gap = info['gap']
+                    projects = info['projects']
+                    
+                    start_x = mx + (mw - (cols * w + (cols - 1) * gap)) // 2
+                    start_y = my + 90
+                    
+                    for i, proj in enumerate(projects):
+                        r = i // cols
+                        c = i % cols
+                        rect = (start_x + c * (w + gap), start_y + r * (h + gap), w, h)
+                        btn = Button(rect, proj[:20], lambda p=proj: ("LOAD_PROJECT", p), text_size=14)
+                        result = btn.check_click(event.pos)
+                        if result:
+                            return result
+                    
+                    modal_rect = pygame.Rect(mx, my, mw, mh)
+                    if not modal_rect.collidepoint(event.pos):
+                        self.show_load_modal = False
+            elif event.type == MOUSEMOTION:
+                if hasattr(self, 'project_list_info') and self.project_list_info['projects']:
+                    mw, mh = 700, 500
+                    mx, my = (self.screen_w - mw) // 2, (self.screen_h - mh) // 2
+                    info = self.project_list_info
+                    cols = info['cols']
+                    w = info['w']
+                    h = info['h']
+                    gap = info['gap']
+                    projects = info['projects']
+                    
+                    start_x = mx + (mw - (cols * w + (cols - 1) * gap)) // 2
+                    start_y = my + 90
+                    
+                    for i, proj in enumerate(projects):
+                        r = i // cols
+                        c = i % cols
+                        rect = (start_x + c * (w + gap), start_y + r * (h + gap), w, h)
+                        btn = Button(rect, proj[:20], lambda p=proj: ("LOAD_PROJECT", p), text_size=14)
+                        btn.check_hover(event.pos)
+                        if btn.hover:
+                            self.project_list_hover_index = i
+                            break
+                    else:
+                        self.project_list_hover_index = None
             return None
 
         if event.type == MOUSEWHEEL:
@@ -330,14 +366,31 @@ class PaintInterface:
         )
         t = self.fonts[24].render("Load Project", True, (255, 255, 255))
         screen.blit(t, (mx + 30, my + 30))
-        if not self.project_list_buttons:
+        
+        if not hasattr(self, 'project_list_info') or not self.project_list_info['projects']:
             msg = self.fonts[16].render(
                 "No projects found in 'projects/' folder.", True, (200, 200, 200)
             )
             screen.blit(msg, (mx + 30, my + 100))
         else:
-            for btn in self.project_list_buttons:
-                btn.draw(screen, self.fonts)
+            info = self.project_list_info
+            cols = info['cols']
+            w = info['w']
+            h = info['h']
+            gap = info['gap']
+            projects = info['projects']
+            
+            start_x = mx + (mw - (cols * w + (cols - 1) * gap)) // 2
+            start_y = my + 90
+            
+            for i, proj in enumerate(projects):
+                r = i // cols
+                c = i % cols
+                rect = (start_x + c * (w + gap), start_y + r * (h + gap), w, h)
+                btn = Button(rect, proj[:20], lambda p=proj: ("LOAD_PROJECT", p), text_size=14)
+                if hasattr(self, 'project_list_hover_index') and self.project_list_hover_index == i:
+                    btn.hover = True
+                btn.draw(screen, self.fonts, 0)
 
     def draw_sidebar_content(self, screen):
         content_rect = pygame.Rect(0, 50, SIDEBAR_WIDTH, self.screen_h - 50)

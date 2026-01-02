@@ -238,14 +238,22 @@ def draw_modal_overlay_3d(surface, w, h, title, lines):
     surface.blit(overlay, (0, 0))
 
 
-def draw_3d_controls_overlay(surface, w, h):
+def draw_3d_controls_overlay(surface, w, h, info_button_hover=False):
     overlay = pygame.Surface((w, h), pygame.SRCALPHA)
 
     font = pygame.font.SysFont("Segoe UI", 14)
     small_font = pygame.font.SysFont("Segoe UI", 12)
 
-    panel_w, panel_h = 220, 180
-    px, py = 10, 10
+    info_btn_size = 32
+    info_btn_x, info_btn_y = 10, 10
+    info_btn_color = (80, 150, 255) if info_button_hover else (60, 60, 65)
+    pygame.draw.rect(overlay, info_btn_color, (info_btn_x, info_btn_y, info_btn_size, info_btn_size), border_radius=6)
+    info_text = font.render("?", True, (255, 255, 255))
+    info_text_rect = info_text.get_rect(center=(info_btn_x + info_btn_size // 2, info_btn_y + info_btn_size // 2))
+    overlay.blit(info_text, info_text_rect)
+
+    panel_w, panel_h = 220, 200
+    px, py = 10, 50
     pygame.draw.rect(overlay, (20, 20, 25, 200), (px, py, panel_w, panel_h), border_radius=8)
     pygame.draw.rect(overlay, THEME["accent"], (px, py, panel_w, panel_h), width=1, border_radius=8)
 
@@ -256,7 +264,7 @@ def draw_3d_controls_overlay(surface, w, h):
         "W/S - Rotate Up/Down",
         "A/D - Rotate Left/Right",
         "R/E - Zoom In/Out",
-        "Q - Reset Camera",
+        "Mouse Wheel - Zoom In/Out",
         "H - Toggle Help",
         "ESC - Back to Paint"
     ]
@@ -268,4 +276,6 @@ def draw_3d_controls_overlay(surface, w, h):
         y += 22
 
     surface.blit(overlay, (0, 0))
+    
+    return (info_btn_x, info_btn_y, info_btn_size, info_btn_size)
 
