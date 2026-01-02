@@ -17,6 +17,28 @@ Watch the demo videos to see the application in action:
 - **RAM**: Minimum 8GB (16GB+ recommended)
 - **Storage**: ~10GB free space for model downloads
 
+## Quick Run
+
+Make sure you have `make` command installed.
+
+```bash
+make
+```
+
+This will install all the dependencies (if needed) and run the program.
+
+To install the deps only, you can run:
+
+```bash
+make install
+```
+
+To wipe the venv and the deps installed, you can run:
+
+```bash
+make clean
+```
+
 ## Installation
 
 ### Step 1: Create Virtual Environment
