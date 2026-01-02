@@ -54,7 +54,7 @@ python prepare_models.py
 ### Running the Application
 
 ```bash
-python main_sketch.py
+python main.py
 ```
 
 ### Basic Workflow

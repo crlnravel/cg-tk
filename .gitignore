@@ -18,3 +18,5 @@ report.loa
 report.loe
 
 *.txt
+
+__pycache__/

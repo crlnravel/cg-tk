@@ -15,7 +15,6 @@ from diffusers import (
 )
 from transformers import pipeline as depth_pipeline
 
-# Configuration
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 if torch.backends.mps.is_available():
     DEVICE = "mps"
@@ -31,7 +30,6 @@ if torch.backends.mps.is_available():
 print("=" * 60)
 print()
 
-# Models to download
 MODELS = [
     {
         "name": "ControlNet (Scribble)",
@@ -51,7 +49,6 @@ MODELS = [
 ]
 
 def download_controlnet(model_id, device):
-    """Download ControlNet model"""
     print(f"Downloading ControlNet: {model_id}")
     print("This may take several minutes...")
     try:
@@ -66,7 +63,6 @@ def download_controlnet(model_id, device):
         return None
 
 def download_stable_diffusion(model_id, controlnet, device):
-    """Download Stable Diffusion pipeline"""
     print(f"Downloading Stable Diffusion: {model_id}")
     print("This may take several minutes...")
     try:
@@ -85,7 +81,6 @@ def download_stable_diffusion(model_id, controlnet, device):
         return None
 
 def download_depth_estimator(model_id, device):
-    """Download depth estimation model"""
     print(f"Downloading Depth Estimator: {model_id}")
     print("This may take several minutes...")
     try:
@@ -109,20 +104,17 @@ def main():
     success_count = 0
     total_models = len(MODELS)
     
-    # Download ControlNet
     print(f"[1/{total_models}] {MODELS[0]['name']}")
     controlnet = download_controlnet(MODELS[0]['model_id'], DEVICE)
     if controlnet:
         success_count += 1
     print()
     
-    # Download Stable Diffusion (requires ControlNet)
     if controlnet:
         print(f"[2/{total_models}] {MODELS[1]['name']}")
         pipe = download_stable_diffusion(MODELS[1]['model_id'], controlnet, DEVICE)
         if pipe:
             success_count += 1
-        # Clean up to save memory
         del pipe
         del controlnet
         torch.cuda.empty_cache() if DEVICE == "cuda" else None
@@ -130,17 +122,14 @@ def main():
         print(f"[2/{total_models}] {MODELS[1]['name']} - SKIPPED (ControlNet failed)")
     print()
     
-    # Download Depth Estimator
     print(f"[3/{total_models}] {MODELS[2]['name']}")
     depth_pipe = download_depth_estimator(MODELS[2]['model_id'], DEVICE)
     if depth_pipe:
         success_count += 1
-    # Clean up
     del depth_pipe
     torch.cuda.empty_cache() if DEVICE == "cuda" else None
     print()
     
-    # Summary
     print("=" * 60)
     print("Download Summary")
     print("=" * 60)
@@ -148,7 +137,7 @@ def main():
     
     if success_count == total_models:
         print("✓ All models downloaded successfully!")
-        print("You can now run 'python main_sketch.py' without downloading.")
+        print("You can now run 'python main.py' without downloading.")
         print()
         print("Models are cached in:")
         cache_dir = os.path.expanduser("~/.cache/huggingface/")
@@ -170,4 +159,3 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"\n\nUnexpected error: {e}")
         sys.exit(1)
-
