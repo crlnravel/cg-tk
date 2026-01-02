@@ -3,6 +3,13 @@
 % Remove ACM reference format
 \setcitestyle{authoryear,round}
 
+% Disable ACM copyright and reference block
+\settopmatter{printacmref=false}
+\settopmatter{printccs=false}
+\settopmatter{printfolios=true}
+
+\setcopyright{none}
+
 % Package for better figure handling
 \usepackage{graphicx}
 \usepackage{subcaption}
@@ -15,11 +22,6 @@
 % Metadata
 \acmConference[Computer Graphics]{CSCE604029}{Semester Gasal 2025/2026}{Universitas Indonesia}
 \acmYear{2025}
-\acmDOI{10.1145/xxxxxx.xxxxxx}
-
-% Copyright
-\setcopyright{acmlicensed}
-\copyrightyear{2025}
 
 % Title and Authors
 \title{Sketch-to-Material Studio: Integrating Classical Rendering with AI-Based Texture Generation}
