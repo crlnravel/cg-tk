@@ -178,15 +178,14 @@ A 200x200 grid mesh serves as the base geometry, providing high-resolution surfa
 Performs displacement mapping by sampling the depth texture and displacing vertices along their normals. The displacement strength is configurable (default 0.3) to control surface relief.
 
 \textbf{Fragment Shader.}
-Implements an enhanced Phong lighting model with four key components:
+Implements Phong lighting with three components:
 \begin{itemize}
-    \item \textit{Ambient}: Constant 0.05 contribution to prevent total darkness in shadowed areas.
-    \item \textit{Diffuse}: Lambertian reflection based on surface normal and light direction.
-    \item \textit{Specular}: Blinn-Phong highlights with dynamic shininess controlled by the roughness map.
-    \item \textit{Rim Light}: Fresnel-like effect to accentuate object silhouettes and enhance 3D readability.
+    \item \textit{Ambient}: Constant 0.2 contribution for base illumination
+    \item \textit{Diffuse}: Lambertian reflection based on surface normal and light direction
+    \item \textit{Specular}: Blinn-Phong specular highlights with shininess exponent 32
 \end{itemize}
 
-The shader samples four textures: albedo for base color, depth for displacement, normal for surface detail, and roughness for specular control. Normal maps are blended with geometric normals to enhance surface detail. Roughness values modulate the specular highlight intensity and sharpness, creating more realistic material appearance.
+The shader samples four textures: albedo for base color, depth for displacement, normal for surface detail, and roughness for specular control. Normal maps are blended with geometric normals to enhance surface detail. Roughness values modulate the specular highlight intensity, creating more realistic material appearance.
 
 \textbf{Camera System.}
 An orbital camera allows interactive viewing with mouse drag controls. The camera uses spherical coordinates converted to Cartesian for LookAt matrix computation.
@@ -194,30 +193,31 @@ An orbital camera allows interactive viewing with mouse drag controls. The camer
 % ==========================================
 % 4. IMPLEMENTATION
 % ==========================================
-% ... (Bagian Rasterization Pipeline tetap sama) ...
+\section{Implementation}
+
+\subsection{Classical Graphics Components}
+
+\textbf{Rasterization Pipeline.}
+We implement a complete OpenGL rasterization pipeline using PyOpenGL. The pipeline includes:
+\begin{itemize}
+    \item Vertex Buffer Objects (VBO) for vertex data storage.
+    \item Element Buffer Objects (EBO) for indexed rendering.
+    \item Vertex Array Objects (VAO) for state management.
+    \item Custom GLSL shaders for vertex and fragment processing.
+\end{itemize}
 
 \textbf{Lighting Model.}
-The lighting calculation is implemented in the fragment shader using an extended Blinn-Phong model that includes a Fresnel-based rim term. The final pixel intensity $I$ is calculated as:
-
+The Phong lighting model is implemented in the fragment shader with the following equation:
 \begin{equation}
-I = I_a + I_d + I_s + I_r
+I = I_a + I_d \cdot \max(\mathbf{N} \cdot \mathbf{L}, 0) + I_s \cdot (\mathbf{N} \cdot \mathbf{H})^n
 \end{equation}
+where $I_a$, $I_d$, and $I_s$ are ambient, diffuse, and specular intensities, $\mathbf{N}$ is the surface normal, $\mathbf{L}$ is the light direction, $\mathbf{H}$ is the half-vector, and $n$ is the shininess exponent.
 
-Where the components are defined as:
-\begin{align*}
-I_a &= 0.05 \cdot \mathbf{A} \\
-I_d &= \max(\mathbf{N} \cdot \mathbf{L}, 0) \cdot \mathbf{A} \\
-I_s &= 0.3 \cdot (1 - \text{rough}) \cdot (\mathbf{N} \cdot \mathbf{H})^{\alpha} \\
-I_r &= 0.3 \cdot (1 - \max(\mathbf{V} \cdot \mathbf{N}, 0))^3
-\end{align*}
+\textbf{Texture Mapping.}
+Multi-texture binding enables simultaneous use of albedo, depth, normal, and roughness maps. Textures are loaded using PIL/Pillow and uploaded to GPU memory with mipmap generation for quality filtering. The system organizes generated materials into project folders for easy management and reuse.
 
-Here, $\mathbf{A}$ is the albedo color, $\mathbf{N}$ is the perturbed surface normal, $\mathbf{L}$ is the light direction, $\mathbf{H}$ is the half-vector, and $\mathbf{V}$ is the view direction. 
-
-Unlike standard Phong shading with a fixed exponent, our implementation uses a **dynamic shininess exponent** $\alpha$ derived from the roughness map:
-\begin{equation}
-\alpha = \text{mix}(2.0, 64.0, 1.0 - \text{rough})
-\end{equation}
-This ensures that smoother surfaces (low roughness) exhibit sharper highlights (higher $\alpha$), while rougher surfaces produce broader, dimmer highlights, accurately simulating physical material properties.
+\textbf{Displacement Mapping.}
+Vertex displacement is performed in the vertex shader by sampling the depth texture and scaling the displacement by a configurable strength parameter. This creates geometric detail without modifying the base mesh topology.
 
 \subsection{AI-Based Components}
 
@@ -296,7 +296,7 @@ We evaluate the visual quality of generated materials through qualitative analys
 The Phong lighting model provides realistic illumination, with specular highlights enhanced by roughness map modulation. Displacement mapping creates visible geometric relief based on the depth extracted from the albedo, while normal mapping adds fine-scale surface variation. The combination produces materials that appear three-dimensional and realistic based on the initial 2D input.
 
 \subsection{Performance Metrics}
-Performance measurements were conducted on multiple hardware configurations:
+Performance measurements were conducted on three distinct hardware configurations to evaluate system scalability across server-grade GPUs, consumer silicon, and standard CPUs. The breakdown of generation times is detailed in Table~\ref{tab:performance}.
 
 \begin{table}[h]
 \centering
@@ -307,15 +307,16 @@ Performance measurements were conducted on multiple hardware configurations:
 \toprule
 \textbf{Hardware} & \textbf{Albedo} & \textbf{Roughness} & \textbf{Depth} & \textbf{Normal} \\
 \midrule
-NVIDIA RTX 3080 (CUDA) & 35s & 8s & 11s & 15s \\
-Apple M1 Pro (MPS) & 65s & 15s & 20s & 25s \\
-Intel i5-11300H (CPU) & 264s & 0.03s & 0.08s & 0.15s \\
-Intel i7-10700K (CPU) & 420s & 45s & 60s & 75s \\
+NVIDIA RTX 2000 Ada (CUDA) & 5.41s & 0.01s & 0.08s & 0.10s \\
+Apple M4 Pro (MPS) & 24.05s & 0.01s & 0.49s & 0.06s \\
+Intel i5-11300H (CPU) & 264.00s & 0.03s & 0.08s & 0.15s \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-Rendering performance achieves 60 FPS on all tested configurations, as the classical rendering pipeline is GPU-accelerated and computationally efficient. The AI generation stage is the primary bottleneck, but remains acceptable for interactive use on GPU-enabled systems.
+The results indicate that the texture synthesis stage (Albedo generation) is the primary computational bottleneck, accounting for over 95\% of the total processing time. The NVIDIA RTX 2000 Ada demonstrates superior performance, completing the entire pipeline in under 6 seconds, which enables a near real-time interactive workflow. The Apple M4 Pro provides a viable experience with $\sim$25-second wait times, while CPU-only execution proves impractical for rapid iteration, requiring over 4 minutes per generation.
+
+Conversely, the auxiliary map generation (Depth, Normal, Roughness) is computationally negligible, taking less than a second even on consumer hardware. Once the assets are generated, the classical OpenGL rendering pipeline maintains a stable 60 FPS on all tested configurations, ensuring smooth visualization and camera interaction regardless of the generation latency.
 
 % ==========================================
 % 6. DISCUSSION
@@ -323,66 +324,52 @@ Rendering performance achieves 60 FPS on all tested configurations, as the class
 \section{Discussion}
 
 \subsection{Findings}
-Our implementation demonstrates that modern AI models can be effectively integrated with classical rendering pipelines. The combination of ControlNet-based Stable Diffusion for texture generation and learned depth estimation provides a complete PBR material creation workflow. The classical rendering pipeline ensures real-time performance and realistic lighting, while AI components handle the complex task of content generation.
+Our implementation demonstrates that modern AI models can be effectively integrated with classical rendering pipelines to democratize material creation. The combination of ControlNet-based Stable Diffusion for texture generation and learned depth estimation provides a complete PBR material creation workflow from a simple binary sketch.
 
-Key observations include:
+Key observations based on our evaluation include:
 \begin{itemize}
-    \item ControlNet effectively preserves sketch structure while adding realistic detail, providing better structural control than standard Img2Img approaches.
-    \item Depth estimation provides sufficient geometric information for convincing displacement mapping.
-    \item Normal maps derived from depth enhance surface detail without additional computation.
-    \item Roughness maps derived from albedo provide physically plausible material properties without requiring additional AI processing.
-    \item The Phong lighting model, enhanced with roughness modulation, produces visually appealing results when combined with high-quality textures.
-    \item Threaded AI loading prevents UI blocking during model initialization, improving user experience.
+    \item \textbf{Asymmetric Computational Load}: The pipeline workload is heavily skewed. The generative diffusion process (Albedo) consumes over 95\% of the total processing time, whereas the geometry extraction (Depth, Normal, Roughness) is computationally trivial, executing in under 0.5 seconds on modern silicon.
+    \item \textbf{Hardware Scalability}: The system exhibits dramatic scalability. On server-grade hardware (RTX 2000 Ada), the system approaches real-time interactivity ($\sim$5s generation), while consumer Apple Silicon (M4 Pro) offers a viable "coffee-break" workflow ($\sim$24s). CPU execution, while functional, remains impractical for iterative design.
+    \item \textbf{Visual Fidelity vs. Input}: ControlNet successfully preserves the structural intent of the user's sketch (e.g., brick patterns, tile layouts) while the classical rendering engine ensures that the resulting 3D visualization reacts realistically to lighting changes, verifying the effectiveness of the generated PBR maps.
+    \item \textbf{Rendering Stability}: Regardless of the generation time, the visualization module maintains a steady 60 FPS, proving that the decoupling of asset generation (AI) and asset visualization (OpenGL) is critical for user experience.
 \end{itemize}
 
 \subsection{Limitations}
-Several limitations are present in the current implementation:
+Despite the successful integration, several limitations remain:
 
-\textbf{Generation Time.}
-AI generation requires 30-60 seconds on GPU hardware, which may interrupt workflow for rapid iteration. CPU execution is significantly slower (5-10 minutes), limiting accessibility.
+\textbf{Generation Latency on Consumer Hardware.}
+While high-end GPUs offer a seamless experience, the ~24-second wait time on the Apple M4 Pro (a high-end consumer chip) indicates that the system still poses friction for rapid iteration on standard laptops without dedicated CUDA GPUs.
 
 \textbf{Resolution Constraints.}
-Textures are generated at 512x512 resolution due to model constraints. Higher resolutions would improve quality but require more computational resources.
+Textures are currently fixed at 512x512 resolution due to the inherent constraints of the Stable Diffusion v1.5 model used. Upscaling would require additional super-resolution steps, further increasing generation time.
 
-\textbf{Blocking Operations.}
-While initialization is threaded, the current implementation blocks the UI during the specific generation phase. Asynchronous processing would improve user experience.
-
-\textbf{Limited Control.}
-Users have limited control over generation parameters. More granular control over texture style, detail level, and geometric properties would enhance usability.
-
-\textbf{Lighting Constraints.}
-The system uses a fixed lighting setup. Dynamic lighting or multiple light sources would provide more realistic visualization.
+\textbf{Lighting Flexibility.}
+The current rendering implementation uses a fixed single-point lighting setup (plus ambient and rim). While the generated maps support full PBR, the visualization tool does not yet allow users to dynamically place lights or change environment maps to test the material under different conditions.
 
 % ==========================================
 % 7. FUTURE WORK
 % ==========================================
 \section{Future Work}
 
-Several directions can guide future improvements to the system.
+Several directions can guide future improvements to optimize the system for broader adoption:
 
-\textbf{Performance Optimization}
-Performance can be enhanced by implementing asynchronous AI generation using threading, introducing texture caching to avoid unnecessary regeneration, and optimizing both model loading and inference times.
+\textbf{Latency Optimization via Distillation.}
+Since Albedo generation is the sole bottleneck, future iterations could employ Latent Consistency Models (LCM) or SDXL Turbo. These models can reduce the inference steps from 30 to roughly 4-8 steps, potentially bringing the generation time on consumer hardware down to sub-5 second levels.
 
-\textbf{Enhanced Features}
-Enhancements could include support for higher resolution texture generation, the addition of multiple lighting setups and dynamic lighting, and enabling users to edit material parameters such as roughness and metallic properties. Providing export functionality for integration with game engines like Unity or Unreal, along with animation support for material sequences, would further improve usability.
+\textbf{Interactive Lighting Controls.}
+To better validate the generated roughness and normal maps, the visualization engine should be upgraded to support mouse-driven light positioning or Image-Based Lighting (IBL) with HDRI maps. This would allow users to verify specular responses more intuitively.
 
-\textbf{Advanced AI Integration}
-Advances in AI integration may involve fine-tuning models for specific material types, adding style transfer capabilities, and ensuring multi-view consistency in 3D texture generation. Incorporating methods such as NeRF or Gaussian Splatting would enable novel view synthesis directly from generated materials.
-
-\textbf{User Experience}
-User experience can be improved by developing a real-time preview of material generation, allowing brush-based editing of generated textures, and providing a material library with presets. Additionally, incorporating collaborative features would facilitate workflows for teams.
-
+\textbf{Texture Tiling and Export.}
+Currently, the generated textures are not guaranteed to be perfectly tileable. Integrating a "seamless tiling" post-processing step (via circular convolution in the diffusion process) and adding an OBJ/MTL export feature would allow these materials to be directly used in game engines like Unity or Unreal Engine.
 
 % ==========================================
 % 8. CONCLUSION
 % ==========================================
 \section{Conclusion}
 
-We have presented Sketch-to-Material Studio, a system that successfully integrates classical OpenGL rendering with modern AI-based texture generation. Our approach demonstrates that ControlNet-based diffusion models and learned depth estimation can be effectively combined with classical graphics techniques to create a complete PBR material creation workflow. The system enables users to generate high-quality 3D materials (albedo, depth, normal, and roughness maps) from simple sketches, with real-time visualization through classical rendering pipelines. The use of ControlNet ensures that generated textures preserve the structural intent of user sketches while adding realistic detail.
+We have presented \textit{Sketch-to-Material Studio}, a system that successfully bridges the gap between AI-driven texture generation and classical 3D rendering. Addressing the limitations of prior generative methods which often lack geometric context, our approach effectively integrates Stable Diffusion ControlNet with learned depth estimation to produce comprehensive PBR material sets. By combining the creative flexibility of diffusion models with the precision of classical OpenGL rasterization, we ensure that generated textures not only preserve the user's artistic intent from the original sketch but are also immediately usable in a realistic lighting environment.
 
-The integration of AI and classical components provides complementary strengths: AI handles complex content generation while classical techniques ensure real-time performance and realistic lighting. This combination addresses the challenge of rapid material prototyping in 3D graphics workflows, making material creation more accessible to artists and developers.
-
-Future work will focus on performance optimization, enhanced user controls, and advanced AI integration to further improve the system's capabilities and usability.
+Our evaluation demonstrates that while the texture synthesis phase remains computationally intensive on consumer hardware, the subsequent map extraction and classical rendering pipeline provide a highly efficient and interactive visualization experience. The system effectively automates the technically demanding aspects of material creation—such as depth displacement and normal mapping—allowing users to focus purely on the creative design process. This combination addresses the challenge of rapid material prototyping in 3D graphics workflows, making material creation more accessible to artists and developers.
 
 % ==========================================
 % 9. REFERENCES
