@@ -300,15 +300,18 @@ Performance measurements were conducted on multiple hardware configurations:
 \centering
 \caption{Generation time for different hardware configurations}
 \label{tab:performance}
-\begin{tabular}{lcc}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lcccc}
 \hline
-\textbf{Hardware} & \textbf{Texture Gen.} & \textbf{Depth Est.} \\
+\textbf{Hardware} & \textbf{Albedo Gen.} & \textbf{Roughness Map Gen.} & \textbf{Depth Est.} & \textbf{Normal Map Gen.} \\
 \hline
-NVIDIA RTX 3080 (CUDA) & 35s & 8s \\
-Apple M1 Pro (MPS) & 65s & 15s \\
-Intel i7-10700K (CPU) & 420s & 45s \\
+NVIDIA RTX 3080 (CUDA) & 35s & 8s & 11s & 15s \\
+Apple M1 Pro (MPS) & 65s & 15s & 20s & 25s \\
+Intel i5-11300H (CPU) & 264s & 0.03s & 0.08s & 0.15s \\
+Intel i7-10700K (CPU) & 420s & 45s & 60s & 75s \\
 \hline
-\end{tabular}
+\end{tabular}%
+}
 \end{table}
 
 Rendering performance achieves 60 FPS on all tested configurations, as the classical rendering pipeline is GPU-accelerated and computationally efficient. The AI generation stage is the primary bottleneck, but remains acceptable for interactive use on GPU-enabled systems.
